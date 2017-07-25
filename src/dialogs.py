@@ -16,6 +16,33 @@ import Gpmc
 from complex import GPQuery, get_default_realm
 import re
 
+next_guid = None
+
+class GPME:
+    def __init(self):
+        pass
+
+    def Show(self):
+        global next_guid
+        Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__contents(), 'help me!', 'Back', 'Next')
+
+        ret = Symbol('abort')
+        gpo_guid = next_guid
+        if not gpo_guid:
+            return Symbol('back')
+        while True:
+            ret = UI.UserInput()
+
+            if str(ret) in ['back', 'abort', 'next']:
+                break
+
+        return ret
+
+    def __contents(self):
+        from ycp import *
+        ycp.widget_names()
+        return RichText('Contents of the Group Policy Management Editor')
+
 class GPMC:
     def __init__(self):
         self.realm = get_default_realm().lower()
@@ -24,22 +51,26 @@ class GPMC:
         self.gpos = self.q.gpo_list()
 
     def Show(self):
+        global next_guid
         Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Console'), self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         Wizard.DisableBackButton()
 
-        ret = Symbol('abort');
+        ret = Symbol('abort')
         current_page = 'Domains'
         old_gpo_guid = None
         gpo_guid = None
         while True:
             ret = UI.UserInput()
+            print str(ret)
 
             old_gpo_guid = gpo_guid
             gpo_guid = UI.QueryWidget(Term('id', 'gpmc_tree'), Symbol('CurrentItem'))
             if str(ret) in ['back', 'abort']:
                 break
             elif str(ret) == 'next':
-                pass
+                if gpo_guid != 'Domains' and gpo_guid != self.realm:
+                    next_guid = gpo_guid
+                break
             elif UI.HasSpecialWidget(Symbol('DumbTab')):
                 if gpo_guid == 'Domains':
                     if current_page != 'Domains':
@@ -50,6 +81,9 @@ class GPMC:
                         UI.ReplaceWidget(Term('id', 'rightPane'), self.__realm())
                         current_page = 'Realm'
                 else:
+                    if str(ret) == 'advanced':
+                        self.__gpo_tab_adv(gpo_guid)
+                        continue
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         UI.ReplaceWidget(Term('id', 'rightPane'), self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
@@ -61,8 +95,6 @@ class GPMC:
                         UI.ReplaceWidget(Term('id', 'gpo_tabContents'), self.__settings_page())
                     elif str(ret) == 'Delegation':
                         UI.ReplaceWidget(Term('id', 'gpo_tabContents'), self.__delegation_page())
-                    elif str(ret) == 'gpmc_tree':
-                        UI.ReplaceWidget(Term('id', 'gpo_tabContents'), self.__scope_page())
                     elif str(ret) == 'gpo_status':
                         selected_gpo = None
                         for gpo in self.gpos:
@@ -184,7 +216,20 @@ class GPMC:
                 break
         gpo_name = gpo[1]['displayName'][-1]
 
-        return Frame(gpo_name, DumbTab(Term('id', 'gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Term('id', 'gpo_tabContents'), Term('Empty'))))
+        return Frame(gpo_name, ReplacePoint(Term('id', 'gpo_tabContainer'), VBox(self.__details_page(gpo_guid), Right(PushButton(Term('id', 'advanced'), 'Advanced')))))
+
+    def __gpo_tab_adv(self, gpo_guid):
+        from ycp import *
+        ycp.widget_names()
+
+        selected_gpo = None
+        for gpo in self.gpos:
+            if gpo[1]['name'][-1] == gpo_guid:
+                selected_gpo = gpo
+                break
+        gpo_name = gpo[1]['displayName'][-1]
+
+        UI.ReplaceWidget(Term('id', 'gpo_tabContainer'), DumbTab(Term('id', 'gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Term('id', 'gpo_tabContents'), self.__scope_page())))
 
     def __gpmc_page(self):
         from ycp import *

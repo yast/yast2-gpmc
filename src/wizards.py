@@ -19,10 +19,15 @@ def show_gpmc():
     g = dialogs.GPMC()
     return g.Show()
 
+def show_gpme():
+    g = dialogs.GPME()
+    return g.Show()
+
 def GPMCSequence():
     aliases = {
         'read' : [Code(Gpmc.ReadDialog), True],
         'gpmc' : Code(show_gpmc),
+        'gpme' : Code(show_gpme),
         'write' : Code(Gpmc.WriteDialog)
     }
 
@@ -33,6 +38,10 @@ def GPMCSequence():
             Symbol('next') : 'gpmc'
         },
         'gpmc' : {
+            Symbol('abort') : Symbol('abort'),
+            Symbol('next') : 'gpme',
+        },
+        'gpme' : {
             Symbol('abort') : Symbol('abort'),
             Symbol('next') : Symbol('next')
         },
