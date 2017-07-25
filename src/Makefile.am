@@ -1,8 +1,8 @@
 # Makefile.am for gpmc/src
 
-yncludedir = @yncludedir@/gpmc
+yncludedir = ${prefix}/share/YaST2/include/gpmc
 
-clientdir = .
+clientdir = ${prefix}/share/YaST2/clients
 client_DATA =			\
 	gpmc.py
 
@@ -12,11 +12,11 @@ ynclude_DATA =			\
 	dialogs.py		\
 	complex.py
 
-desktopdir = .
+desktopdir = ${prefix}/share/applications/YaST2
 desktop_DATA =			\
 	gpmc.desktop
 
-moduledir = .
+moduledir = ${prefix}/share/YaST2/modules
 module_DATA = Gpmc.py
 
 # create a symlink for local build, #145327
