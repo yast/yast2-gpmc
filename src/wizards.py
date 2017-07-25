@@ -15,12 +15,17 @@ from ycp import *
 import dialogs
 import Gpmc
 
+gpo = None
+
 def show_gpmc():
+    global gpo
     g = dialogs.GPMC()
-    return g.Show()
+    gpo, resp = g.Show()
+    return resp
 
 def show_gpme():
-    g = dialogs.GPME()
+    global gpo
+    g = dialogs.GPME(gpo)
     return g.Show()
 
 def GPMCSequence():
