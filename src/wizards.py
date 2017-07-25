@@ -28,7 +28,7 @@ def show_gpme():
     g = dialogs.GPME(gpo)
     return g.Show()
 
-def GPMCSequence():
+def GPMCSequence(lp, creds):
     aliases = {
         'read' : [Code(Gpmc.ReadDialog), True],
         'gpmc' : Code(show_gpmc),
