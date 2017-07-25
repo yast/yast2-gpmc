@@ -22,7 +22,7 @@ class GPME:
         self.selected_gpo = selected_gpo
 
     def Show(self):
-        Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__contents(), 'help me!', 'Back', 'Next')
+        Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Finish')
 
         ret = Symbol('abort')
         while True:
@@ -30,13 +30,110 @@ class GPME:
 
             if str(ret) in ['back', 'abort', 'next']:
                 break
+            if str(ret) == 'gpme_tree':
+                selection = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
+                if selection == 'Password Policy':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__password_policy())
+                elif selection == 'Account Lockout Policy':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__account_lockout_policy())
+                elif selection == 'Kerberos Policy':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__kerberos_policy())
+                elif selection == 'Scripts (Startup/Shutdown)':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__scripts())
+                elif selection == 'Software installation':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__software_installation())
+                else:
+                    UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
 
         return ret
+
+    def __password_policy(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return RichText('contents')
+
+    def __account_lockout_policy(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return RichText('contents')
+
+    def __kerberos_policy(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return RichText('contents')
+
+    def __scripts(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return RichText('contents')
+
+    def __software_installation(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return RichText('contents')
 
     def __contents(self):
         from ycp import *
         ycp.widget_names()
         return RichText('Contents of the Group Policy Management Editor')
+
+    def __gpme_page(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return HBox(
+            HWeight(1, self.__policy_tree()),
+            HWeight(2, ReplacePoint(Term('id', 'rightPane'), Term('Empty'))),
+            )
+
+    def __policy_tree(self):
+        from ycp import *
+        ycp.widget_names()
+
+        computer_config = [
+            Term('item', 'Policies', False,
+                [
+                    Term('item', 'Software Settings', False,
+                        [
+                            Term('item', 'Software installation', False, []),
+                        ]
+                    ),
+                    Term('item', 'Windows Settings', False,
+                        [
+                            Term('item', 'Scripts (Startup/Shutdown)', False, []),
+                            Term('item', 'Security Settings', False,
+                                [
+                                    Term('item', 'Account Policy', False,
+                                        [
+                                            Term('item', 'Password Policy', False, []),
+                                            Term('item', 'Account Lockout Policy', False, []),
+                                            Term('item', 'Kerberos Policy', False, []),
+                                        ]
+                                    ),
+                                ]
+                            ),
+                        ]
+                    ),
+                ]
+            ),
+        ]
+
+        contents = Tree(Term('id', 'gpme_tree'), Term('opt', Symbol('notify')), self.selected_gpo[1]['displayName'][-1],
+            [
+                Term('item', 'Computer Configuration', True,
+                    computer_config
+                ),
+                Term('item', 'User Configuration', True,
+                    computer_config
+                )
+            ]
+        )
+        return contents
 
 class GPMC:
     def __init__(self):
