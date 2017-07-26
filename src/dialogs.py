@@ -15,11 +15,21 @@ ycp.import_module('Label')
 import Gpmc
 from complex import GPQuery, get_default_realm
 import re
+from samba import smb
 
 
 class GPME:
-    def __init__(self, selected_gpo):
+    def __init__(self, selected_gpo, lp, creds):
         self.selected_gpo = selected_gpo
+        self.gpo_path = self.selected_gpo[1]['gPCFileSysPath'][-1]
+        path_parts = [n for n in self.gpo_path.split('\\') if n]
+        self.path = '/'.join(path_parts[2:])
+        self.lp = lp
+        self.creds = creds
+        try:
+            self.conn = smb.SMB(path_parts[0], path_parts[1], lp=self.lp, creds=self.creds)
+        except:
+            self.conn = None
 
     def Show(self):
         Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Finish')
@@ -63,7 +73,10 @@ class GPME:
         from ycp import *
         ycp.widget_names()
 
-        return RichText('contents')
+        items = []
+        items.append(Term('item', 'Enforce user logon restrictions', 'Enabled'))
+
+        return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
     def __scripts(self):
         from ycp import *

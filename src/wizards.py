@@ -16,6 +16,8 @@ import dialogs
 import Gpmc
 
 gpo = None
+lp = None
+creds = None
 
 def show_gpmc():
     global gpo
@@ -24,11 +26,14 @@ def show_gpmc():
     return resp
 
 def show_gpme():
-    global gpo
-    g = dialogs.GPME(gpo)
+    global gpo, lp, creds
+    g = dialogs.GPME(gpo, lp, creds)
     return g.Show()
 
-def GPMCSequence(lp, creds):
+def GPMCSequence(in_lp, in_creds):
+    global lp, creds
+    lp = in_lp
+    creds = in_creds
     aliases = {
         'read' : [Code(Gpmc.ReadDialog), True],
         'gpmc' : Code(show_gpmc),

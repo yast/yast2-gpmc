@@ -53,8 +53,6 @@ if __name__ == "__main__":
     cmdline_description = {
         'id'    : 'gpmc',
         'guihandler'        : Code(wizards.GPMCSequence(lp, creds)),
-        'initialize'        : Code(Gpmc.Read),
-        'finish'            : Code(Gpmc.Write),
     }
 
     CommandLine.Run(cmdline_description);
