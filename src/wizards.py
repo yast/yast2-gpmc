@@ -20,8 +20,8 @@ lp = None
 creds = None
 
 def show_gpmc():
-    global gpo
-    g = dialogs.GPMC()
+    global gpo, creds
+    g = dialogs.GPMC(creds)
     gpo, resp = g.Show()
     return resp
 

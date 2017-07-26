@@ -151,11 +151,13 @@ class GPME:
         return contents
 
 class GPMC:
-    def __init__(self):
+    def __init__(self, creds):
         self.realm = get_default_realm().lower()
-        from auth import user, password
-        self.q = GPQuery(self.realm, user, password)
-        self.gpos = self.q.gpo_list()
+        try:
+            self.q = GPQuery(self.realm, creds.get_username(), creds.get_password())
+            self.gpos = self.q.gpo_list()
+        except:
+            self.gpos = []
         self.selected_gpo = None
 
     def __select_gpo(self, gpo_guid):
@@ -211,7 +213,7 @@ class GPMC:
                         UI.ReplaceWidget(Term('id', 'gpo_tabContents'), self.__settings_page())
                     elif str(ret) == 'Delegation':
                         UI.ReplaceWidget(Term('id', 'gpo_tabContents'), self.__delegation_page())
-                    elif str(ret) == 'gpo_status':
+                    elif str(ret) == 'gpo_status' and self.q:
                         combo_choice = UI.QueryWidget(Term('id', 'gpo_status'), Symbol('Value'))
                         if combo_choice == 'All settings disabled':
                             self.q.set_attrs(self.selected_gpo[0], {'flags': self.selected_gpo[1]['flags']}, {'flags': ['3']})
