@@ -32,6 +32,8 @@ class GPME:
             self.conn = None
 
     def Show(self):
+        if not self.conn:
+            return Symbol('back')
         Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Finish')
 
         ret = Symbol('abort')
@@ -142,7 +144,7 @@ class GPME:
                     computer_config
                 ),
                 Term('item', 'User Configuration', True,
-                    computer_config
+                    []
                 )
             ]
         )
