@@ -16,14 +16,15 @@ import Gpmc
 from complex import GPQuery, get_default_realm
 import re
 from samba import smb
-
+from ConfigParser import ConfigParser
+from StringIO import StringIO
 
 class GPME:
     def __init__(self, selected_gpo, lp, creds):
         self.selected_gpo = selected_gpo
         self.gpo_path = self.selected_gpo[1]['gPCFileSysPath'][-1]
         path_parts = [n for n in self.gpo_path.split('\\') if n]
-        self.path = '/'.join(path_parts[2:])
+        self.path = '\\'.join(path_parts[2:])
         self.lp = lp
         self.creds = creds
         try:
@@ -76,7 +77,26 @@ class GPME:
         ycp.widget_names()
 
         items = []
-        items.append(Term('item', 'Enforce user logon restrictions', 'Enabled'))
+        if self.conn:
+            kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
+            policy = self.conn.loadfile(self.path + kerb_path)
+            inf_conf = ConfigParser()
+            inf_conf.optionxform=str
+            try:
+                inf_conf.readfp(StringIO(policy))
+            except:
+                inf_conf.readfp(StringIO(policy.decode('utf-16')))
+            for key, value in inf_conf.items('Kerberos Policy'):
+                if key == 'MaxTicketAge':
+                    items.append(Term('item', 'Maximum lifetime for user ticket', '%d hours' % int(value)))
+                elif key == 'MaxRenewAge':
+                    items.append(Term('item', 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
+                elif key == 'MaxServiceAge':
+                    items.append(Term('item', 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
+                elif key == 'MaxClockSkew':
+                    items.append(Term('item', 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
+                elif key == 'TicketValidateClient':
+                    items.append(Term('item', 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
