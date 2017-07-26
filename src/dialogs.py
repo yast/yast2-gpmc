@@ -64,7 +64,29 @@ class GPME:
         from ycp import *
         ycp.widget_names()
 
-        return RichText('contents')
+        items = []
+        if self.conn:
+            kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
+            policy = self.conn.loadfile(self.path + kerb_path)
+            inf_conf = ConfigParser()
+            inf_conf.optionxform=str
+            try:
+                inf_conf.readfp(StringIO(policy))
+            except:
+                inf_conf.readfp(StringIO(policy.decode('utf-16')))
+            for key, value in inf_conf.items('System Access'):
+                if key == 'MinimumPasswordAge':
+                    items.append(Term('item', 'Minimum password age', '%d days' % int(value)))
+                elif key == 'MaximumPasswordAge':
+                    items.append(Term('item', 'Maximum password age', '%d days' % int(value)))
+                elif key == 'MinimumPasswordLength':
+                    items.append(Term('item', 'Minimum password length', '%d characters' % int(value)))
+                elif key == 'PasswordComplexity':
+                    items.append(Term('item', 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
+                elif key == 'PasswordHistorySize':
+                    items.append(Term('item', 'Enforce password history', '%d passwords remembered' % int(value)))
+
+        return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
     def __account_lockout_policy(self):
         from ycp import *
