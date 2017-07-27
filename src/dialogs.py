@@ -247,16 +247,13 @@ class GPMC:
             if str(ret) in ['back', 'abort']:
                 break
             elif str(ret) == 'next':
-                if gpo_guid != 'Domains' and gpo_guid != self.realm:
-                    break
-                else:
-                    continue
+                break
             elif UI.HasSpecialWidget(Symbol('DumbTab')):
                 if gpo_guid == 'Domains':
-                    if current_page != 'Domains':
+                    if current_page != None:
                         Wizard.DisableNextButton()
-                        UI.ReplaceWidget(Term('id', 'rightPane'), self.__domains())
-                        current_page = 'Domains'
+                        UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
+                        current_page = None
                 elif gpo_guid == self.realm:
                     if current_page != 'Realm':
                         Wizard.DisableNextButton()
@@ -367,17 +364,11 @@ class GPMC:
         
         return contents
 
-    def __domains(self):
-        from ycp import *
-        ycp.widget_names()
-
-        return Frame('Domains', DumbTab(['Contents'], RichText(self.realm)))
-
     def __realm(self):
         from ycp import *
         ycp.widget_names()
 
-        return Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], RichText(self.realm)))
+        return Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Term('id', 'realm_tabContainer'), Term('Empty'))))
 
     def __gpo_tab(self, gpo_guid):
         from ycp import *
@@ -399,6 +390,6 @@ class GPMC:
 
         return HBox(
             HWeight(1, self.__forest()),
-            HWeight(2, ReplacePoint(Term('id', 'rightPane'), self.__domains())),
+            HWeight(2, ReplacePoint(Term('id', 'rightPane'), Term('Empty'))),
             )
 
