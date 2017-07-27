@@ -1,27 +1,9 @@
 #!/usr/bin/env python
 
 import ldap, ldap.modlist
-from subprocess import Popen, PIPE
-from samba.param import LoadParm
 from samba import smb
 from ConfigParser import ConfigParser
 from StringIO import StringIO
-
-smb_conf = None
-def get_smb_conf():
-    global smb_conf
-    if not smb_conf:
-        smb_conf = Popen(['grep', 'CONFIGFILE'], stdin=Popen(['/usr/sbin/smbd', '-b'], stdout=PIPE).stdout, stdout=PIPE).communicate()[0].strip().split(':')[-1].strip()
-    return smb_conf
-
-default_realm = None
-def get_default_realm():
-    global default_realm
-    if not default_realm:
-        lp = LoadParm()
-        lp.load(get_smb_conf())
-        default_realm = lp.get('realm')
-    return default_realm
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):

@@ -13,7 +13,7 @@ import Wizard
 ycp.import_module('Label')
 
 import Gpmc
-from complex import GPQuery, get_default_realm, GPOConnection
+from complex import GPQuery, GPOConnection
 import re
 
 class GPME:
@@ -175,8 +175,8 @@ class GPME:
         return contents
 
 class GPMC:
-    def __init__(self, creds):
-        self.realm = get_default_realm().lower()
+    def __init__(self, lp, creds):
+        self.realm = lp.get('realm')
         try:
             self.q = GPQuery(self.realm, creds.get_username(), creds.get_password())
             self.gpos = self.q.gpo_list()
