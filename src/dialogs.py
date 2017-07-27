@@ -93,7 +93,25 @@ class GPME:
         from ycp import *
         ycp.widget_names()
 
-        return RichText('contents')
+        items = []
+        if self.conn:
+            kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
+            policy = self.conn.loadfile(self.path + kerb_path)
+            inf_conf = ConfigParser()
+            inf_conf.optionxform=str
+            try:
+                inf_conf.readfp(StringIO(policy))
+            except:
+                inf_conf.readfp(StringIO(policy.decode('utf-16')))
+            for key, value in inf_conf.items('System Access'):
+                if key == 'LockoutDuration':
+                    items.append(Term('item', 'Account lockout duration', '%d minutes' % int(value)))
+                elif key == 'LockoutBadCount':
+                    items.append(Term('item', 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
+                elif key == 'ResetLockoutCount':
+                    items.append(Term('item', 'Reset account lockout counter after', '%d minutes' % int(value)))
+
+        return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
     def __kerberos_policy(self):
         from ycp import *
