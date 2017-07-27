@@ -68,24 +68,25 @@ class GPME:
         items = []
         if self.conn:
             kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
-            policy = self.conn.loadfile(self.path + kerb_path)
-            inf_conf = ConfigParser()
-            inf_conf.optionxform=str
-            try:
-                inf_conf.readfp(StringIO(policy))
-            except:
-                inf_conf.readfp(StringIO(policy.decode('utf-16')))
-            for key, value in inf_conf.items('System Access'):
-                if key == 'MinimumPasswordAge':
-                    items.append(Term('item', Term('id', 'MinimumPasswordAge'), 'Minimum password age', '%d days' % int(value)))
-                elif key == 'MaximumPasswordAge':
-                    items.append(Term('item', Term('id', 'MaximumPasswordAge'), 'Maximum password age', '%d days' % int(value)))
-                elif key == 'MinimumPasswordLength':
-                    items.append(Term('item', Term('id', 'MinimumPasswordLength'), 'Minimum password length', '%d characters' % int(value)))
-                elif key == 'PasswordComplexity':
-                    items.append(Term('item', Term('id', 'PasswordComplexity'), 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
-                elif key == 'PasswordHistorySize':
-                    items.append(Term('item', Term('id', 'PasswordHistorySize'), 'Enforce password history', '%d passwords remembered' % int(value)))
+            if self.conn.chkpath(self.path + kerb_path):
+                policy = self.conn.loadfile(self.path + kerb_path)
+                inf_conf = ConfigParser()
+                inf_conf.optionxform=str
+                try:
+                    inf_conf.readfp(StringIO(policy))
+                except:
+                    inf_conf.readfp(StringIO(policy.decode('utf-16')))
+                for key, value in inf_conf.items('System Access'):
+                    if key == 'MinimumPasswordAge':
+                        items.append(Term('item', Term('id', 'MinimumPasswordAge'), 'Minimum password age', '%d days' % int(value)))
+                    elif key == 'MaximumPasswordAge':
+                        items.append(Term('item', Term('id', 'MaximumPasswordAge'), 'Maximum password age', '%d days' % int(value)))
+                    elif key == 'MinimumPasswordLength':
+                        items.append(Term('item', Term('id', 'MinimumPasswordLength'), 'Minimum password length', '%d characters' % int(value)))
+                    elif key == 'PasswordComplexity':
+                        items.append(Term('item', Term('id', 'PasswordComplexity'), 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
+                    elif key == 'PasswordHistorySize':
+                        items.append(Term('item', Term('id', 'PasswordHistorySize'), 'Enforce password history', '%d passwords remembered' % int(value)))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -96,20 +97,21 @@ class GPME:
         items = []
         if self.conn:
             kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
-            policy = self.conn.loadfile(self.path + kerb_path)
-            inf_conf = ConfigParser()
-            inf_conf.optionxform=str
-            try:
-                inf_conf.readfp(StringIO(policy))
-            except:
-                inf_conf.readfp(StringIO(policy.decode('utf-16')))
-            for key, value in inf_conf.items('System Access'):
-                if key == 'LockoutDuration':
-                    items.append(Term('item', Term('id', 'LockoutDuration'), 'Account lockout duration', '%d minutes' % int(value)))
-                elif key == 'LockoutBadCount':
-                    items.append(Term('item', Term('id', 'LockoutBadCount'), 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
-                elif key == 'ResetLockoutCount':
-                    items.append(Term('item', Term('id', 'ResetLockoutCount'), 'Reset account lockout counter after', '%d minutes' % int(value)))
+            if self.conn.chkpath(self.path + kerb_path):
+                policy = self.conn.loadfile(self.path + kerb_path)
+                inf_conf = ConfigParser()
+                inf_conf.optionxform=str
+                try:
+                    inf_conf.readfp(StringIO(policy))
+                except:
+                    inf_conf.readfp(StringIO(policy.decode('utf-16')))
+                for key, value in inf_conf.items('System Access'):
+                    if key == 'LockoutDuration':
+                        items.append(Term('item', Term('id', 'LockoutDuration'), 'Account lockout duration', '%d minutes' % int(value)))
+                    elif key == 'LockoutBadCount':
+                        items.append(Term('item', Term('id', 'LockoutBadCount'), 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
+                    elif key == 'ResetLockoutCount':
+                        items.append(Term('item', Term('id', 'ResetLockoutCount'), 'Reset account lockout counter after', '%d minutes' % int(value)))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -120,24 +122,25 @@ class GPME:
         items = []
         if self.conn:
             kerb_path = "\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf"
-            policy = self.conn.loadfile(self.path + kerb_path)
-            inf_conf = ConfigParser()
-            inf_conf.optionxform=str
-            try:
-                inf_conf.readfp(StringIO(policy))
-            except:
-                inf_conf.readfp(StringIO(policy.decode('utf-16')))
-            for key, value in inf_conf.items('Kerberos Policy'):
-                if key == 'MaxTicketAge':
-                    items.append(Term('item', Term('id', 'MaxTicketAge'), 'Maximum lifetime for user ticket', '%d hours' % int(value)))
-                elif key == 'MaxRenewAge':
-                    items.append(Term('item', Term('id', 'MaxRenewAge'), 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
-                elif key == 'MaxServiceAge':
-                    items.append(Term('item', Term('id', 'MaxServiceAge'), 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
-                elif key == 'MaxClockSkew':
-                    items.append(Term('item', Term('id', 'MaxClockSkew'), 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
-                elif key == 'TicketValidateClient':
-                    items.append(Term('item', Term('id', 'TicketValidateClient'), 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
+            if self.conn.chkpath(self.path + kerb_path):
+                policy = self.conn.loadfile(self.path + kerb_path)
+                inf_conf = ConfigParser()
+                inf_conf.optionxform=str
+                try:
+                    inf_conf.readfp(StringIO(policy))
+                except:
+                    inf_conf.readfp(StringIO(policy.decode('utf-16')))
+                for key, value in inf_conf.items('Kerberos Policy'):
+                    if key == 'MaxTicketAge':
+                        items.append(Term('item', Term('id', 'MaxTicketAge'), 'Maximum lifetime for user ticket', '%d hours' % int(value)))
+                    elif key == 'MaxRenewAge':
+                        items.append(Term('item', Term('id', 'MaxRenewAge'), 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
+                    elif key == 'MaxServiceAge':
+                        items.append(Term('item', Term('id', 'MaxServiceAge'), 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
+                    elif key == 'MaxClockSkew':
+                        items.append(Term('item', Term('id', 'MaxClockSkew'), 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
+                    elif key == 'TicketValidateClient':
+                        items.append(Term('item', Term('id', 'TicketValidateClient'), 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
