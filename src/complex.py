@@ -3,6 +3,9 @@
 import ldap, ldap.modlist
 from subprocess import Popen, PIPE
 from samba.param import LoadParm
+from samba import smb
+from ConfigParser import ConfigParser
+from StringIO import StringIO
 
 smb_conf = None
 def get_smb_conf():
@@ -19,6 +22,29 @@ def get_default_realm():
         lp.load(get_smb_conf())
         default_realm = lp.get('realm')
     return default_realm
+
+class GPOConnection:
+    def __init__(self, lp, creds, gpo_path):
+        path_parts = [n for n in gpo_path.split('\\') if n]
+        self.path = '\\'.join(path_parts[2:])
+        try:
+            self.conn = smb.SMB(path_parts[0], path_parts[1], lp=lp, creds=creds)
+        except:
+            self.conn = None
+
+    def parse_inf(self, filename):
+        inf_conf = ConfigParser()
+        if self.conn:
+            try:
+                policy = self.conn.loadfile(self.path + filename)
+            except:
+                policy = ''
+            inf_conf.optionxform=str
+            try:
+                inf_conf.readfp(StringIO(policy))
+            except:
+                inf_conf.readfp(StringIO(policy.decode('utf-16')))
+        return inf_conf
 
 class GPQuery:
     def __init__(self, realm, user, password):
