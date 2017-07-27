@@ -77,15 +77,15 @@ class GPME:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
             for key, value in inf_conf.items('System Access'):
                 if key == 'MinimumPasswordAge':
-                    items.append(Term('item', 'Minimum password age', '%d days' % int(value)))
+                    items.append(Term('item', Term('id', 'MinimumPasswordAge'), 'Minimum password age', '%d days' % int(value)))
                 elif key == 'MaximumPasswordAge':
-                    items.append(Term('item', 'Maximum password age', '%d days' % int(value)))
+                    items.append(Term('item', Term('id', 'MaximumPasswordAge'), 'Maximum password age', '%d days' % int(value)))
                 elif key == 'MinimumPasswordLength':
-                    items.append(Term('item', 'Minimum password length', '%d characters' % int(value)))
+                    items.append(Term('item', Term('id', 'MinimumPasswordLength'), 'Minimum password length', '%d characters' % int(value)))
                 elif key == 'PasswordComplexity':
-                    items.append(Term('item', 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
+                    items.append(Term('item', Term('id', 'PasswordComplexity'), 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
                 elif key == 'PasswordHistorySize':
-                    items.append(Term('item', 'Enforce password history', '%d passwords remembered' % int(value)))
+                    items.append(Term('item', Term('id', 'PasswordHistorySize'), 'Enforce password history', '%d passwords remembered' % int(value)))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -105,11 +105,11 @@ class GPME:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
             for key, value in inf_conf.items('System Access'):
                 if key == 'LockoutDuration':
-                    items.append(Term('item', 'Account lockout duration', '%d minutes' % int(value)))
+                    items.append(Term('item', Term('id', 'LockoutDuration'), 'Account lockout duration', '%d minutes' % int(value)))
                 elif key == 'LockoutBadCount':
-                    items.append(Term('item', 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
+                    items.append(Term('item', Term('id', 'LockoutBadCount'), 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
                 elif key == 'ResetLockoutCount':
-                    items.append(Term('item', 'Reset account lockout counter after', '%d minutes' % int(value)))
+                    items.append(Term('item', Term('id', 'ResetLockoutCount'), 'Reset account lockout counter after', '%d minutes' % int(value)))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -129,15 +129,15 @@ class GPME:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
             for key, value in inf_conf.items('Kerberos Policy'):
                 if key == 'MaxTicketAge':
-                    items.append(Term('item', 'Maximum lifetime for user ticket', '%d hours' % int(value)))
+                    items.append(Term('item', Term('id', 'MaxTicketAge'), 'Maximum lifetime for user ticket', '%d hours' % int(value)))
                 elif key == 'MaxRenewAge':
-                    items.append(Term('item', 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
+                    items.append(Term('item', Term('id', 'MaxRenewAge'), 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
                 elif key == 'MaxServiceAge':
-                    items.append(Term('item', 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
+                    items.append(Term('item', Term('id', 'MaxServiceAge'), 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
                 elif key == 'MaxClockSkew':
-                    items.append(Term('item', 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
+                    items.append(Term('item', Term('id', 'MaxClockSkew'), 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
                 elif key == 'TicketValidateClient':
-                    items.append(Term('item', 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
+                    items.append(Term('item', Term('id', 'TicketValidateClient'), 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
 
         return Table(Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -152,11 +152,6 @@ class GPME:
         ycp.widget_names()
 
         return RichText('contents')
-
-    def __contents(self):
-        from ycp import *
-        ycp.widget_names()
-        return RichText('Contents of the Group Policy Management Editor')
 
     def __gpme_page(self):
         from ycp import *
