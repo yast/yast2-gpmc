@@ -36,6 +36,7 @@ class GPME:
         if not self.conn:
             return Symbol('back')
         Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Finish')
+        UI.SetFocus(Term('id', 'gpme_tree'))
 
         ret = Symbol('abort')
         while True:
@@ -213,6 +214,8 @@ class GPMC:
     def Show(self):
         Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Console'), self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         Wizard.DisableBackButton()
+        Wizard.DisableNextButton()
+        UI.SetFocus(Term('id', 'gpmc_tree'))
 
         ret = Symbol('abort')
         current_page = 'Domains'
@@ -233,10 +236,12 @@ class GPMC:
             elif UI.HasSpecialWidget(Symbol('DumbTab')):
                 if gpo_guid == 'Domains':
                     if current_page != 'Domains':
+                        Wizard.DisableNextButton()
                         UI.ReplaceWidget(Term('id', 'rightPane'), self.__domains())
                         current_page = 'Domains'
                 elif gpo_guid == self.realm:
                     if current_page != 'Realm':
+                        Wizard.DisableNextButton()
                         UI.ReplaceWidget(Term('id', 'rightPane'), self.__realm())
                         current_page = 'Realm'
                 else:
@@ -244,6 +249,7 @@ class GPMC:
                         self.__gpo_tab_adv(gpo_guid)
                         continue
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
+                        Wizard.EnableNextButton()
                         self.selected_gpo = self.__select_gpo(gpo_guid)
                         UI.ReplaceWidget(Term('id', 'rightPane'), self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
