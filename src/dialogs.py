@@ -66,17 +66,16 @@ class GPME:
                 UI.OpenDialog(self.__change_setting(Policies[policy]['opts'][selection]['desc'], value))
                 while True:
                     subret = UI.UserInput()
-                    if str(subret) == 'ok_change_setting':
+                    if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        inf_conf.set(section, selection, value)
+                        if value.strip():
+                            if not inf_conf.has_section(section):
+                                inf_conf.add_section(section)
+                            inf_conf.set(section, selection, value)
+                        elif inf_conf.has_section(section) and inf_conf.has_option(section, selection):
+                            inf_conf.remove_option(section, selection)
                         self.conn.write_inf(gpt_filename, inf_conf)
-                        UI.CloseDialog()
-                        break
-                    elif str(subret) == 'apply_change_setting':
-                        value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        inf_conf.set(section, selection, value)
-                        self.conn.write_inf(gpt_filename, inf_conf)
-                    elif str(subret) == 'cancel_change_setting':
+                    if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         break
                 if str(ret) == 'password_policy_table':
