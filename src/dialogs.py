@@ -60,7 +60,10 @@ class GPME:
                 elif str(ret) == 'kerberos_policy_table':
                     policy = 'Kerberos Policy'
                 section = Policies[policy]['sect']
-                UI.OpenDialog(self.__change_setting(Policies[policy]['opts'][selection]['desc'], inf_conf.get(section, selection)))
+                value = ''
+                if inf_conf.has_section(section) and inf_conf.has_option(section, selection):
+                    value = inf_conf.get(section, selection).encode('ascii')
+                UI.OpenDialog(self.__change_setting(Policies[policy]['opts'][selection]['desc'], value))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting':
@@ -92,7 +95,7 @@ class GPME:
 
         contents = HBox(HSpacing(), VBox(
             VSpacing(),
-            TextEntry(Term('id', 'entry_change_setting'), setting, '%d' % int(value)),
+            TextEntry(Term('id', 'entry_change_setting'), setting, value),
             VSpacing(),
             Right(HBox(
                 PushButton(Term('id', 'ok_change_setting'), 'OK'),
@@ -109,10 +112,12 @@ class GPME:
 
         items = []
         inf_conf = self.conn.parse_inf(terms['file'])
-        if inf_conf.has_section(terms['sect']):
-            for key, value in inf_conf.items(terms['sect']):
-                if key in terms['opts'].keys():
-                    items.append(Term('item', Term('id', key.encode('ascii')), terms['opts'][key]['desc'], terms['opts'][key]['valstr'](value.encode('ascii'))))
+        for key in terms['opts'].keys():
+            if inf_conf.has_section(terms['sect']) and inf_conf.has_option(terms['sect'], key):
+                value = inf_conf.get(terms['sect'], key).encode('ascii')
+            else:
+                value = None
+            items.append(Term('item', Term('id', key), terms['opts'][key]['desc'], (terms['opts'][key]['valstr'](value) if value else 'Not Defined')))
 
         return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
 
