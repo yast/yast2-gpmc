@@ -47,26 +47,37 @@ class GPME:
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__software_installation())
                 else:
                     UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
-            elif str(ret) == 'password_policy_table':
+            elif str(ret) == 'password_policy_table' or str(ret) == 'account_lockout_policy_table' or str(ret) == 'kerberos_policy_table':
                 gpt_filename = '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf'
-                selection = UI.QueryWidget(Term('id', 'password_policy_table'), Symbol('CurrentItem'))
+                selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                 inf_conf = self.conn.parse_inf(gpt_filename)
-                UI.OpenDialog(self.__change_setting(selection, inf_conf.get('System Access', selection)))
+                if str(ret) == 'password_policy_table' or str(ret) == 'account_lockout_policy_table':
+                    section = 'System Access'
+                elif str(ret) == 'kerberos_policy_table':
+                    section = 'Kerberos Policy'
+                UI.OpenDialog(self.__change_setting(selection, inf_conf.get(section, selection)))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting':
                         value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        inf_conf.set('System Access', selection, value)
+                        inf_conf.set(section, selection, value)
                         self.conn.write_inf(gpt_filename, inf_conf)
                         UI.CloseDialog()
                         break
                     elif str(subret) == 'apply_change_setting':
                         value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        inf_conf.set('System Access', selection, value)
+                        inf_conf.set(section, selection, value)
                         self.conn.write_inf(gpt_filename, inf_conf)
                     elif str(subret) == 'cancel_change_setting':
                         UI.CloseDialog()
                         break
+                if str(ret) == 'password_policy_table':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__password_policy())
+                elif str(ret) == 'account_lockout_policy_table':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__account_lockout_policy())
+                elif str(ret) == 'kerberos_policy_table':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__kerberos_policy())
+                UI.SetFocus(Term('id', str(ret)))
 
         return ret
 
@@ -123,7 +134,7 @@ class GPME:
                 elif key == 'ResetLockoutCount':
                     items.append(Term('item', Term('id', 'ResetLockoutCount'), 'Reset account lockout counter after', '%d minutes' % int(value)))
 
-        return Table(Term('header', 'Policy', 'Policy Setting'), items)
+        return Table(Term('id', 'account_lockout_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
 
     def __kerberos_policy(self):
         from ycp import *
@@ -144,7 +155,7 @@ class GPME:
                 elif key == 'TicketValidateClient':
                     items.append(Term('item', Term('id', 'TicketValidateClient'), 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
 
-        return Table(Term('header', 'Policy', 'Policy Setting'), items)
+        return Table(Term('id', 'kerberos_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
 
     def __scripts(self):
         from ycp import *
