@@ -25,6 +25,10 @@ Policies = {
                 'desc' : 'Enforce password history',
                 'valstr' : (lambda v : '%s passwords remembered' % v),
             },
+            'ClearTextPassword' : {
+                'desc' : 'Store passwords using reversible encryption',
+                'valstr' : (lambda v : 'Disabled' if int(v) == 0 else 'Enabled'),
+            },
         },
     },
     'Account Lockout Policy' : {
