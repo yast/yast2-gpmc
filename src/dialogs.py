@@ -24,7 +24,8 @@ class GPME:
     def Show(self):
         if not self.conn:
             return Symbol('back')
-        Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Finish')
+        Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Editor'), self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Close')
+        Wizard.DisableAbortButton()
         UI.SetFocus(Term('id', 'gpme_tree'))
 
         ret = Symbol('abort')
