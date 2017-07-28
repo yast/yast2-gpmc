@@ -13,6 +13,7 @@ import Wizard
 ycp.import_module('Label')
 
 import Gpmc
+from defaults import Policies
 from complex import GPQuery, GPOConnection
 import re
 
@@ -99,64 +100,27 @@ class GPME:
         ), HSpacing() )
         return contents
 
-    def __password_policy(self):
+    def __display_policy(self, terms, id_label):
         from ycp import *
         ycp.widget_names()
 
         items = []
-        inf_conf = self.conn.parse_inf("\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf")
-        if inf_conf.has_section('System Access'):
-            for key, value in inf_conf.items('System Access'):
-                if key == 'MinimumPasswordAge':
-                    items.append(Term('item', Term('id', 'MinimumPasswordAge'), 'Minimum password age', '%d days' % int(value)))
-                elif key == 'MaximumPasswordAge':
-                    items.append(Term('item', Term('id', 'MaximumPasswordAge'), 'Maximum password age', '%d days' % int(value)))
-                elif key == 'MinimumPasswordLength':
-                    items.append(Term('item', Term('id', 'MinimumPasswordLength'), 'Minimum password length', '%d characters' % int(value)))
-                elif key == 'PasswordComplexity':
-                    items.append(Term('item', Term('id', 'PasswordComplexity'), 'Password must meet complexity requirements', 'Disabled' if int(value) == 0 else 'Enabled'))
-                elif key == 'PasswordHistorySize':
-                    items.append(Term('item', Term('id', 'PasswordHistorySize'), 'Enforce password history', '%d passwords remembered' % int(value)))
+        inf_conf = self.conn.parse_inf(terms['file'])
+        if inf_conf.has_section(terms['sect']):
+            for key, value in inf_conf.items(terms['sect']):
+                if key in terms['opts'].keys():
+                    items.append(Term('item', Term('id', key.encode('ascii')), terms['opts'][key]['desc'], terms['opts'][key]['valstr'](value.encode('ascii'))))
 
-        return Table(Term('id', 'password_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
+        return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
+
+    def __password_policy(self):
+        return self.__display_policy(Policies['Password Policy'], 'password_policy_table')
 
     def __account_lockout_policy(self):
-        from ycp import *
-        ycp.widget_names()
-
-        items = []
-        inf_conf = self.conn.parse_inf("\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf")
-        if inf_conf.has_section('System Access'):
-            for key, value in inf_conf.items('System Access'):
-                if key == 'LockoutDuration':
-                    items.append(Term('item', Term('id', 'LockoutDuration'), 'Account lockout duration', '%d minutes' % int(value)))
-                elif key == 'LockoutBadCount':
-                    items.append(Term('item', Term('id', 'LockoutBadCount'), 'Account lockout threshold', '%d invalid logon attempts' % int(value)))
-                elif key == 'ResetLockoutCount':
-                    items.append(Term('item', Term('id', 'ResetLockoutCount'), 'Reset account lockout counter after', '%d minutes' % int(value)))
-
-        return Table(Term('id', 'account_lockout_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
+        return self.__display_policy(Policies['Account Lockout Policy'], 'account_lockout_policy_table')
 
     def __kerberos_policy(self):
-        from ycp import *
-        ycp.widget_names()
-
-        items = []
-        inf_conf = self.conn.parse_inf("\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf")
-        if inf_conf.has_section('Kerberos Policy'):
-            for key, value in inf_conf.items('Kerberos Policy'):
-                if key == 'MaxTicketAge':
-                    items.append(Term('item', Term('id', 'MaxTicketAge'), 'Maximum lifetime for user ticket', '%d hours' % int(value)))
-                elif key == 'MaxRenewAge':
-                    items.append(Term('item', Term('id', 'MaxRenewAge'), 'Maximum lifetime for user ticket renewal', '%d days' % int(value)))
-                elif key == 'MaxServiceAge':
-                    items.append(Term('item', Term('id', 'MaxServiceAge'), 'Maximum lifetime for service ticket', '%d minutes' % int(value)))
-                elif key == 'MaxClockSkew':
-                    items.append(Term('item', Term('id', 'MaxClockSkew'), 'Maximum tolerance for computer clock synchronization', '%d minutes' % int(value)))
-                elif key == 'TicketValidateClient':
-                    items.append(Term('item', Term('id', 'TicketValidateClient'), 'Enforce user logon restrictions', 'Disabled' if int(value) == 0 else 'Enabled'))
-
-        return Table(Term('id', 'kerberos_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
+        return self.__display_policy(Policies['Kerberos Policy'], 'kerberos_policy_table')
 
     def __scripts(self):
         from ycp import *
