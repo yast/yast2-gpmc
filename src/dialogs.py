@@ -53,11 +53,14 @@ class GPME:
                 gpt_filename = '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf'
                 selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                 inf_conf = self.conn.parse_inf(gpt_filename)
-                if str(ret) == 'password_policy_table' or str(ret) == 'account_lockout_policy_table':
-                    section = 'System Access'
+                if str(ret) == 'password_policy_table':
+                    policy = 'Password Policy'
+                elif str(ret) == 'account_lockout_policy_table':
+                    policy = 'Account Lockout Policy'
                 elif str(ret) == 'kerberos_policy_table':
-                    section = 'Kerberos Policy'
-                UI.OpenDialog(self.__change_setting(selection, inf_conf.get(section, selection)))
+                    policy = 'Kerberos Policy'
+                section = Policies[policy]['sect']
+                UI.OpenDialog(self.__change_setting(Policies[policy]['opts'][selection]['desc'], inf_conf.get(section, selection)))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting':
