@@ -28,6 +28,11 @@ class GPOConnection:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
         return inf_conf
 
+    def write_inf(self, filename, inf_config):
+        out = StringIO()
+        inf_config.write(out)
+        self.conn.savefile(self.path + filename, out.getvalue().replace('\n', '\r\n'))
+
 class GPQuery:
     def __init__(self, realm, user, password):
         self.l = ldap.open(realm)

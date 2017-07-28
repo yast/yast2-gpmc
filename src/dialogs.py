@@ -33,7 +33,7 @@ class GPME:
 
             if str(ret) in ['back', 'abort', 'next']:
                 break
-            if str(ret) == 'gpme_tree':
+            elif str(ret) == 'gpme_tree':
                 selection = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
                 if selection == 'Password Policy':
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__password_policy())
@@ -47,8 +47,45 @@ class GPME:
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__software_installation())
                 else:
                     UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
+            elif str(ret) == 'password_policy_table':
+                gpt_filename = '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf'
+                selection = UI.QueryWidget(Term('id', 'password_policy_table'), Symbol('CurrentItem'))
+                inf_conf = self.conn.parse_inf(gpt_filename)
+                UI.OpenDialog(self.__change_setting(selection, inf_conf.get('System Access', selection)))
+                while True:
+                    subret = UI.UserInput()
+                    if str(subret) == 'ok_change_setting':
+                        value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
+                        inf_conf.set('System Access', selection, value)
+                        self.conn.write_inf(gpt_filename, inf_conf)
+                        UI.CloseDialog()
+                        break
+                    elif str(subret) == 'apply_change_setting':
+                        value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
+                        inf_conf.set('System Access', selection, value)
+                        self.conn.write_inf(gpt_filename, inf_conf)
+                    elif str(subret) == 'cancel_change_setting':
+                        UI.CloseDialog()
+                        break
 
         return ret
+
+    def __change_setting(self, setting, value):
+        from ycp import *
+        ycp.widget_names()
+
+        contents = HBox(HSpacing(), VBox(
+            VSpacing(),
+            TextEntry(Term('id', 'entry_change_setting'), setting, '%d' % int(value)),
+            VSpacing(),
+            Right(HBox(
+                PushButton(Term('id', 'ok_change_setting'), 'OK'),
+                PushButton(Term('id', 'cancel_change_setting'), 'Cancel'),
+                PushButton(Term('id', 'apply_change_setting'), 'Apply'),
+            )),
+            VSpacing(),
+        ), HSpacing() )
+        return contents
 
     def __password_policy(self):
         from ycp import *
@@ -69,7 +106,7 @@ class GPME:
                 elif key == 'PasswordHistorySize':
                     items.append(Term('item', Term('id', 'PasswordHistorySize'), 'Enforce password history', '%d passwords remembered' % int(value)))
 
-        return Table(Term('header', 'Policy', 'Policy Setting'), items)
+        return Table(Term('id', 'password_policy_table'), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
 
     def __account_lockout_policy(self):
         from ycp import *
