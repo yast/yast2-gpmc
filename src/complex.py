@@ -31,7 +31,8 @@ class GPOConnection:
     def write_inf(self, filename, inf_config):
         out = StringIO()
         inf_config.write(out)
-        self.conn.savefile(self.path + filename, out.getvalue().replace('\n', '\r\n'))
+        value = out.getvalue().replace('\n', '\r\n').encode('utf-16')
+        self.conn.savefile(self.path + filename, value)
 
 class GPQuery:
     def __init__(self, realm, user, password):
