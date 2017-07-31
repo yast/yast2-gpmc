@@ -92,7 +92,7 @@ class GPME:
         from ycp import *
         ycp.widget_names()
 
-        contents = HBox(HSpacing(), VBox(
+        contents = MinWidth(30, HBox(HSpacing(), VBox(
             VSpacing(),
             TextEntry(Term('id', 'entry_change_setting'), setting, value),
             VSpacing(),
@@ -102,7 +102,7 @@ class GPME:
                 PushButton(Term('id', 'apply_change_setting'), 'Apply'),
             )),
             VSpacing(),
-        ), HSpacing() )
+        ), HSpacing() ))
         return contents
 
     def __display_policy(self, terms, id_label):
@@ -223,14 +223,14 @@ class GPMC:
         from ycp import *
         ycp.widget_names()
 
-        return VBox(
-            TextEntry(Term('id', 'username_prompt'), 'Username', ''),
-            Password(Term('id', 'password_prompt'), 'Password', ''),
-            HBox(
+        return MinWidth(30, VBox(
+            Left(TextEntry(Term('id', 'username_prompt'), 'Username', '')),
+            Left(Password(Term('id', 'password_prompt'), 'Password', '')),
+            Right(HBox(
                 PushButton(Term('id', 'creds_ok'), 'OK'),
                 PushButton(Term('id', 'creds_cancel'), 'Cancel'),
-            )
-        )
+            ))
+        ))
 
     def __select_gpo(self, gpo_guid):
         selected_gpo = None
