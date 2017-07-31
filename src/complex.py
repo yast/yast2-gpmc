@@ -4,6 +4,8 @@ import ldap, ldap.modlist
 from samba import smb
 from ConfigParser import ConfigParser
 from StringIO import StringIO
+import xml.etree.ElementTree as etree
+import os.path
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
@@ -14,7 +16,22 @@ class GPOConnection:
         except:
             self.conn = None
 
-    def parse_inf(self, filename):
+    def parse(self, filename):
+        ext = os.path.splitext(filename)[-1]
+        if ext == '.inf':
+            return self.__parse_inf(filename)
+        elif ext == '.xml':
+            return self.__parse_xml(filename)
+        return ''
+
+    def write(self, filename, config):
+        ext = os.path.splitext(filename)[-1]
+        if ext == '.inf':
+            self.__write_inf(filename, config)
+        elif ext == '.xml':
+            self.__write_xml(filename, config)
+
+    def __parse_inf(self, filename):
         inf_conf = ConfigParser()
         if self.conn:
             try:
@@ -28,10 +45,23 @@ class GPOConnection:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
         return inf_conf
 
-    def write_inf(self, filename, inf_config):
+    def __parse_xml(self, filename):
+        if self.conn:
+            try:
+                policy = self.conn.loadfile(self.path + filename)
+            except:
+                policy = ''
+            xml_conf = etree.fromstring(policy)
+        return xml_conf
+
+    def __write_inf(self, filename, inf_config):
         out = StringIO()
         inf_config.write(out)
         value = out.getvalue().replace('\n', '\r\n').encode('utf-16')
+        self.conn.savefile(self.path + filename, value)
+
+    def __write_xml(self, filename, xml_config):
+        value = '<?xml version="1.0" encoding="utf-8"?>\r\n' + etree.tostring(xml_config, 'utf-8')
         self.conn.savefile(self.path + filename, value)
 
 class GPQuery:

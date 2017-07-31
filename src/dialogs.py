@@ -13,7 +13,7 @@ import Wizard
 ycp.import_module('Label')
 
 import Gpmc
-from defaults import Policies
+from defaults import Policies, fetch_inf_value
 from complex import GPQuery, GPOConnection
 import re
 
@@ -47,34 +47,29 @@ class GPME:
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__scripts())
                 elif selection == 'Software installation':
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__software_installation())
+                elif selection == 'Environment':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__environment())
                 else:
                     UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
-            elif str(ret) == 'password_policy_table' or str(ret) == 'account_lockout_policy_table' or str(ret) == 'kerberos_policy_table':
-                gpt_filename = '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf'
+            elif str(ret)[-12:] == 'policy_table':
                 selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
-                inf_conf = self.conn.parse_inf(gpt_filename)
                 if str(ret) == 'password_policy_table':
                     policy = 'Password Policy'
                 elif str(ret) == 'account_lockout_policy_table':
                     policy = 'Account Lockout Policy'
                 elif str(ret) == 'kerberos_policy_table':
                     policy = 'Kerberos Policy'
-                section = Policies[policy]['sect']
-                value = ''
-                if inf_conf.has_section(section) and inf_conf.has_option(section, selection):
-                    value = inf_conf.get(section, selection).encode('ascii')
-                UI.OpenDialog(self.__change_setting(Policies[policy]['opts'][selection]['desc'], value))
+                elif 'environment' in str(ret):
+                    policy = 'Environment'
+                conf = self.conn.parse(Policies[policy]['file'])
+                opts = Policies[policy]['opts'](conf)
+                UI.OpenDialog(self.__change_setting(opts[selection]['desc'], opts[selection]['value']))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        if value.strip():
-                            if not inf_conf.has_section(section):
-                                inf_conf.add_section(section)
-                            inf_conf.set(section, selection, value)
-                        elif inf_conf.has_section(section) and inf_conf.has_option(section, selection):
-                            inf_conf.remove_option(section, selection)
-                        self.conn.write_inf(gpt_filename, inf_conf)
+                        opts[selection]['modify'](value.strip())
+                        self.conn.write(Policies[policy]['file'], conf)
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         break
@@ -84,6 +79,8 @@ class GPME:
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__account_lockout_policy())
                 elif str(ret) == 'kerberos_policy_table':
                     UI.ReplaceWidget(Term('id', 'rightPane'), self.__kerberos_policy())
+                elif str(ret) == 'environment_policy_table':
+                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__environment())
                 UI.SetFocus(Term('id', str(ret)))
 
         return ret
@@ -110,13 +107,10 @@ class GPME:
         ycp.widget_names()
 
         items = []
-        inf_conf = self.conn.parse_inf(terms['file'])
-        for key in terms['opts'].keys():
-            if inf_conf.has_section(terms['sect']) and inf_conf.has_option(terms['sect'], key):
-                value = inf_conf.get(terms['sect'], key).encode('ascii')
-            else:
-                value = None
-            items.append(Term('item', Term('id', key), terms['opts'][key]['desc'], (terms['opts'][key]['valstr'](value) if value else 'Not Defined')))
+        conf = self.conn.parse(terms['file'])
+        opts = terms['opts'](conf)
+        for key in opts:
+            items.append(Term('item', Term('id', key), opts[key]['desc'], (opts[key]['valstr'](opts[key]['value']) if opts[key]['value'] else 'Not Defined')))
 
         return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
 
@@ -128,6 +122,9 @@ class GPME:
 
     def __kerberos_policy(self):
         return self.__display_policy(Policies['Kerberos Policy'], 'kerberos_policy_table')
+
+    def __environment(self):
+        return self.__display_policy(Policies['Environment'], 'environment_policy_table')
 
     def __scripts(self):
         from ycp import *
@@ -176,6 +173,15 @@ class GPME:
                                     ),
                                 ]
                             ),
+                        ]
+                    ),
+                ]
+            ),
+            Term('item', 'Preferences', False,
+                [
+                    Term('item', 'Windows Settings', False,
+                        [
+                            Term('item', 'Environment', False, []),
                         ]
                     ),
                 ]
