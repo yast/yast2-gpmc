@@ -196,6 +196,7 @@ class GPME:
 
 class GPMC:
     def __init__(self, lp, creds):
+        self.__get_creds(creds)
         self.realm = lp.get('realm')
         try:
             self.q = GPQuery(self.realm, creds.get_username(), creds.get_password())
@@ -203,6 +204,33 @@ class GPMC:
         except:
             self.gpos = []
         self.selected_gpo = None
+
+    def __get_creds(self, creds):
+        if not creds.get_username() or not creds.get_password():
+            UI.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
+            while True:
+                subret = UI.UserInput()
+                if str(subret) == 'creds_ok':
+                    user = UI.QueryWidget(Term('id', 'username_prompt'), Symbol('Value'))
+                    password = UI.QueryWidget(Term('id', 'password_prompt'), Symbol('Value'))
+                    creds.set_username(user)
+                    creds.set_password(password)
+                if str(subret) == 'creds_cancel' or str(subret) == 'creds_ok':
+                    UI.CloseDialog()
+                    break
+
+    def __password_prompt(self, user, password):
+        from ycp import *
+        ycp.widget_names()
+
+        return VBox(
+            TextEntry(Term('id', 'username_prompt'), 'Username', ''),
+            Password(Term('id', 'password_prompt'), 'Password', ''),
+            HBox(
+                PushButton(Term('id', 'creds_ok'), 'OK'),
+                PushButton(Term('id', 'creds_cancel'), 'Cancel'),
+            )
+        )
 
     def __select_gpo(self, gpo_guid):
         selected_gpo = None
