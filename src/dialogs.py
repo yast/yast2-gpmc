@@ -63,12 +63,15 @@ class GPME:
                     policy = 'Environment'
                 conf = self.conn.parse(Policies[policy]['file'])
                 opts = Policies[policy]['opts'](conf)
-                UI.OpenDialog(self.__change_setting(opts[selection]['desc'], opts[selection]['value']))
+                UI.OpenDialog(self.__change_setting(opts[selection]['desc'], opts[selection]['values']))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
-                        value = UI.QueryWidget(Term('id', 'entry_change_setting'), Symbol('Value'))
-                        opts[selection]['modify'](value.strip())
+                        for k in opts[selection]['values'].keys():
+                            value = UI.QueryWidget(Term('id', 'entry_%s' % k), Symbol('Value'))
+                            if opts[selection]['values'][k]['input']['options']:
+                                value = opts[selection]['values'][k]['input']['options'][value.strip()]
+                            opts[selection]['values'][k]['set'](value.strip())
                         self.conn.write(Policies[policy]['file'], conf)
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
@@ -85,13 +88,30 @@ class GPME:
 
         return ret
 
-    def __change_setting(self, setting, value):
+    def __change_values_prompt(self, setting, values):
+        from ycp import *
+        ycp.widget_names()
+
+        items = []
+        for k in values.keys():
+            if values[k]['input']['type'] == 'TextEntry':
+                items.append(Left(TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], values[k]['get'])))
+            elif values[k]['input']['type'] == 'ComboBox':
+                combo_options = []
+                current = values[k]['valstr'](values[k]['get'])
+                for sk in values[k]['input']['options'].keys():
+                    combo_options.append(Term('item', sk, current == sk))
+                items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
+        items = tuple(items)
+        return Frame(setting, VBox(*items))
+
+    def __change_setting(self, setting, values):
         from ycp import *
         ycp.widget_names()
 
         contents = MinWidth(30, HBox(HSpacing(), VBox(
             VSpacing(),
-            TextEntry(Term('id', 'entry_change_setting'), setting, value),
+            self.__change_values_prompt(setting, values),
             VSpacing(),
             Right(HBox(
                 PushButton(Term('id', 'ok_change_setting'), 'OK'),
@@ -109,10 +129,21 @@ class GPME:
         items = []
         conf = self.conn.parse(terms['file'])
         opts = terms['opts'](conf)
+        header = None
         for key in opts:
-            items.append(Term('item', Term('id', key), opts[key]['desc'], (opts[key]['valstr'](opts[key]['value']) if opts[key]['value'] else 'Not Defined')))
+            if not header:
+                header = [opts[key]['title']]
+                for k in opts[key]['values'].keys():
+                    header.append(opts[key]['values'][k]['title'])
+                header = tuple(header)
+            vals = [opts[key]['desc']]
+            for k in opts[key]['values'].keys():
+                val = opts[key]['values'][k]['get']
+                vals.append(opts[key]['values'][k]['valstr'](val))
+            vals = tuple(vals)
+            items.append(Term('item', Term('id', key), *vals))
 
-        return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', 'Policy', 'Policy Setting'), items)
+        return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', *header), items)
 
     def __password_policy(self):
         return self.__display_policy(Policies['Password Policy'], 'password_policy_table')

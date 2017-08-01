@@ -17,39 +17,84 @@ Policies = {
         'opts' : (lambda inf_conf : {
             'MinimumPasswordAge' : {
                 'desc' : 'Minimum password age',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'MinimumPasswordAge'),
-                'valstr' : (lambda v : '%s days' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'MinimumPasswordAge', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'MinimumPasswordAge',
+                    (lambda v : '%s days' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'MaximumPasswordAge' : {
                 'desc' : 'Maximum password age',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'MaximumPasswordAge'),
-                'valstr' : (lambda v : '%s days' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'MaximumPasswordAge', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'MaximumPasswordAge',
+                    (lambda v : '%s days' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'MinimumPasswordLength' : {
                 'desc' : 'Minimum password length',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'MinimumPasswordLength'),
-                'valstr' : (lambda v : '%s characters' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'MinimumPasswordLength', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'MinimumPasswordLength',
+                    (lambda v : '%s characters' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'PasswordComplexity' : {
                 'desc' : 'Password must meet complexity requirements',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'PasswordComplexity'),
-                'valstr' : (lambda v : 'Disabled' if int(v) == 0 else 'Enabled'),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'PasswordComplexity', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'PasswordComplexity',
+                    (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                    {
+                        'type' : 'ComboBox',
+                        'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                    },
+                ),
             },
             'PasswordHistorySize' : {
                 'desc' : 'Enforce password history',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'PasswordHistorySize'),
-                'valstr' : (lambda v : '%s passwords remembered' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'PasswordComplexity', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'PasswordHistorySize',
+                    (lambda v : '%s passwords remembered' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'ClearTextPassword' : {
                 'desc' : 'Store passwords using reversible encryption',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'ClearTextPassword'),
-                'valstr' : (lambda v : 'Disabled' if int(v) == 0 else 'Enabled'),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'ClearTextPassword', v)),
+                'title' : 'Policy',
+                'values' : Policies['Password Policy']['values'](
+                    inf_conf, 'ClearTextPassword',
+                    (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                    {
+                        'type' : 'ComboBox',
+                        'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                    },
+                ),
+            },
+        } ),
+        'values' : (lambda conf, setting, valstr, _input : {
+            'value' : {
+                'title' : 'Policy Setting',
+                'get' : fetch_inf_value(conf, 'System Access', setting),
+                'set' : (lambda v : set_inf_value(conf, 'System Access', setting, v)),
+                'valstr' : valstr,
+                'input' : _input,
             },
         } ),
     },
@@ -58,21 +103,48 @@ Policies = {
         'opts' : (lambda inf_conf : {
             'LockoutDuration' : {
                 'desc' : 'Account lockout duration',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'LockoutDuration'),
-                'valstr' : (lambda v : '%s minutes' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'LockoutDuration', v)),
+                'title' : 'Policy',
+                'values' : Policies['Account Lockout Policy']['values'](
+                    inf_conf, 'LockoutDuration',
+                    (lambda v : '%s minutes' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'LockoutBadCount' : {
                 'desc' : 'Account lockout threshold',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'LockoutBadCount'),
-                'valstr' : (lambda v : '%s invalid logon attempts' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'LockoutBadCount', v)),
+                'title' : 'Policy',
+                'values' : Policies['Account Lockout Policy']['values'](
+                    inf_conf, 'LockoutBadCount',
+                    (lambda v : '%s invalid logon attempts' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'ResetLockoutCount' : {
                 'desc' : 'Reset account lockout counter after',
-                'value' : fetch_inf_value(inf_conf, 'System Access', 'ResetLockoutCount'),
-                'valstr' : (lambda v : '%s minutes' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'System Access', 'ResetLockoutCount', v)),
+                'title' : 'Policy',
+                'values' : Policies['Account Lockout Policy']['values'](
+                    inf_conf, 'ResetLockoutCount',
+                    (lambda v : '%s minutes' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
+            },
+        } ),
+        'values' : (lambda conf, setting, valstr, _input : {
+            'value' : {
+                'title' : 'Policy Setting',
+                'get' : fetch_inf_value(conf, 'System Access', setting),
+                'set' : (lambda v : set_inf_value(conf, 'System Access', setting, v)),
+                'valstr' : valstr,
+                'input' : _input,
             },
         } ),
     },
@@ -81,45 +153,115 @@ Policies = {
         'opts' : (lambda inf_conf : {
             'MaxTicketAge' : {
                 'desc' : 'Maximum lifetime for user ticket',
-                'value' : fetch_inf_value(inf_conf, 'Kerberos Policy', 'MaxTicketAge'),
-                'valstr' : (lambda v : '%s hours' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'Kerberos Policy', 'MaxTicketAge', v)),
+                'title' : 'Policy',
+                'values' : Policies['Kerberos Policy']['values'](
+                    inf_conf, 'MaxTicketAge',
+                    (lambda v : '%s hours' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'MaxRenewAge' : {
                 'desc' : 'Maximum lifetime for user ticket renewal',
-                'value' : fetch_inf_value(inf_conf, 'Kerberos Policy', 'MaxRenewAge'),
-                'valstr' : (lambda v : '%s days' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'Kerberos Policy', 'MaxRenewAge', v)),
+                'title' : 'Policy',
+                'values' : Policies['Kerberos Policy']['values'](
+                    inf_conf, 'MaxRenewAge',
+                    (lambda v : '%s minutes' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'MaxServiceAge' : {
                 'desc' : 'Maximum lifetime for service ticket',
-                'value' : fetch_inf_value(inf_conf, 'Kerberos Policy', 'MaxServiceAge'),
-                'valstr' : (lambda v : '%s minutes' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'Kerberos Policy', 'MaxServiceAge', v)),
+                'title' : 'Policy',
+                'values' : Policies['Kerberos Policy']['values'](
+                    inf_conf, 'MaxServiceAge',
+                    (lambda v : '%s minutes' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'MaxClockSkew' : {
                 'desc' : 'Maximum tolerance for computer clock synchronization',
-                'value' : fetch_inf_value(inf_conf, 'Kerberos Policy', 'MaxClockSkew'),
-                'valstr' : (lambda v : '%s minutes' % v),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'Kerberos Policy', 'MaxClockSkew', v)),
+                'title' : 'Policy',
+                'values' : Policies['Kerberos Policy']['values'](
+                    inf_conf, 'MaxClockSkew',
+                    (lambda v : '%s minutes' % v if v else 'Not Defined'),
+                    {
+                        'type' : 'TextEntry',
+                        'options' : None,
+                    },
+                ),
             },
             'TicketValidateClient' : {
                 'desc' : 'Enforce user logon restrictions',
-                'value' : fetch_inf_value(inf_conf, 'Kerberos Policy', 'TicketValidateClient'),
-                'valstr' : (lambda v : 'Disabled' if int(v) == 0 else 'Enabled'),
-                'modify' : (lambda v : set_inf_value(inf_conf, 'Kerberos Policy', 'TicketValidateClient', v)),
+                'title' : 'Policy',
+                'values' : Policies['Kerberos Policy']['values'](
+                    inf_conf, 'TicketValidateClient',
+                    (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                    {
+                        'type' : 'ComboBox',
+                        'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                    }
+                ),
+            },
+        } ),
+        'values' : (lambda conf, setting, valstr, _input : {
+            'value' : {
+                'title' : 'Policy Setting',
+                'get' : fetch_inf_value(conf, 'Kerberos Policy', setting),
+                'set' : (lambda v : set_inf_value(conf, 'Kerberos Policy', setting, v)),
+                'valstr' : valstr,
+                'input' : _input,
             },
         } ),
     },
     'Environment' : {
         'file': '\\MACHINE\\Preferences\\EnvironmentVariables\\EnvironmentVariables.xml',
         'opts' : (lambda xml_conf : {
-            a.attrib['clsid']: {
+            a.attrib['name']: {
                 'desc' : a.attrib['name'],
-                'value' : a.find('Properties').attrib['value'],
-                'valstr' : (lambda v : v),
-                'modify' : (lambda v : a.find('Properties').set('value', v)),
+                'title' : 'Name',
+                'values' : Policies['Environment']['values'](a),
             } for a in xml_conf.findall('EnvironmentVariable')
+        } ),
+        'values' : (lambda a : {
+            'value' : {
+                'title' : 'Value',
+                'get' : a.find('Properties').attrib['value'],
+                'set' : (lambda v : a.find('Properties').set('value', v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+            'user' : {
+                'title' : 'User',
+                'get' : a.find('Properties').attrib['user'],
+                'set' : (lambda v : a.find('Properties').set('user', v)),
+                'valstr' : (lambda v : 'No' if int(v) == 0 else 'Yes'),
+                'input' : {
+                    'type' : 'ComboBox',
+                    'options' : {'Yes' : '1', 'No' : '0'},
+                },
+            },
+            'action' : {
+                'title' : 'Action',
+                'get' : a.find('Properties').attrib['action'],
+                'set' : (lambda v : a.find('Properties').set('action', v)),
+                'valstr' : (lambda v : {'U' : 'Update', 'C' : 'Create', 'R' : 'Replace', 'D' : 'Delete'}[v]),
+                'input' : {
+                    'type' : 'ComboBox',
+                    'options' : {'Update' : 'U', 'Create' : 'C', 'Replace' : 'R', 'Delete' : 'D'},
+                },
+            },
         } ),
     },
     'Scripts (Startup/Shutdown)' : {
