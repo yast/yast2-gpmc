@@ -11,6 +11,12 @@ def set_inf_value(inf_conf, section, key, value):
     elif inf_conf.has_section(section) and inf_conf.has_option(section, key):
         inf_conf.remove_option(section, key)
 
+def iter_scripts_conf(inf_conf):
+    for section in inf_conf.sections():
+        for option in inf_conf.options(section):
+            if 'CmdLine' in option:
+                yield option, section
+
 Policies = {
     'Password Policy' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
@@ -264,14 +270,42 @@ Policies = {
             },
         } ),
     },
-    'Scripts (Startup/Shutdown)' : {
+    'Scripts': {
+        'file' : '\\MACHINE\\Scripts\\scripts.ini',
+        'opts' : (lambda inf_conf : {
+            '%s:%s' % (option, section) : {
+                'desc' : inf_conf.get(section, option),
+                'title' : 'Name',
+                'values' : Policies['Scripts']['values'](inf_conf, section, option),
+            } for option, section in iter_scripts_conf(inf_conf)
+        } ),
+        'values' : (lambda inf_conf, section, option : {
+            'type' : {
+                'title' : 'Type',
+                'get' : section,
+                'set' : None,
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'Label',
+                    'options' : None,
+                },
+            },
+            'Parameters' : {
+                'title' : 'Parameters',
+                'get' : inf_conf.get(section, '%sParameters' % option[:-7]),
+                'set' : (lambda v : inf_conf.set(section, '%sParameters' % option[:-7], v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+        } ),
     },
     'Software installation' : {
     },
 }
 
 if __name__ == "__main__":
-    print Policies['Kerberos Policy']
-    print Policies['Environment']
-    print Policies['Password Policy']
     print Policies
+

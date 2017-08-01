@@ -53,14 +53,7 @@ class GPME:
                     UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
             elif str(ret)[-12:] == 'policy_table':
                 selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
-                if str(ret) == 'password_policy_table':
-                    policy = 'Password Policy'
-                elif str(ret) == 'account_lockout_policy_table':
-                    policy = 'Account Lockout Policy'
-                elif str(ret) == 'kerberos_policy_table':
-                    policy = 'Kerberos Policy'
-                elif 'environment' in str(ret):
-                    policy = 'Environment'
+                policy = str(ret)[:-6].replace('_', ' ').title()
                 conf = self.conn.parse(Policies[policy]['file'])
                 opts = Policies[policy]['opts'](conf)
                 UI.OpenDialog(self.__change_setting(opts[selection]['desc'], opts[selection]['values']))
@@ -71,7 +64,8 @@ class GPME:
                             value = UI.QueryWidget(Term('id', 'entry_%s' % k), Symbol('Value'))
                             if opts[selection]['values'][k]['input']['options']:
                                 value = opts[selection]['values'][k]['input']['options'][value.strip()]
-                            opts[selection]['values'][k]['set'](value.strip())
+                            if opts[selection]['values'][k]['set']:
+                                opts[selection]['values'][k]['set'](value.strip())
                         self.conn.write(Policies[policy]['file'], conf)
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
@@ -102,6 +96,8 @@ class GPME:
                 for sk in values[k]['input']['options'].keys():
                     combo_options.append(Term('item', sk, current == sk))
                 items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
+            elif values[k]['input']['type'] == 'Label':
+                items.append(Left(Label(values[k]['get'])))
         items = tuple(items)
         return Frame(setting, VBox(*items))
 
@@ -155,13 +151,10 @@ class GPME:
         return self.__display_policy(Policies['Kerberos Policy'], 'kerberos_policy_table')
 
     def __environment(self):
-        return self.__display_policy(Policies['Environment'], 'environment_policy_table')
+        return self.__display_policy(Policies['Environment'], 'environment_table')
 
     def __scripts(self):
-        from ycp import *
-        ycp.widget_names()
-
-        return RichText('contents')
+        return self.__display_policy(Policies['Scripts'], 'scripts_table')
 
     def __software_installation(self):
         from ycp import *

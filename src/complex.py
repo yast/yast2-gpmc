@@ -18,7 +18,7 @@ class GPOConnection:
 
     def parse(self, filename):
         ext = os.path.splitext(filename)[-1]
-        if ext == '.inf':
+        if ext == '.inf' or ext == '.ini':
             return self.__parse_inf(filename)
         elif ext == '.xml':
             return self.__parse_xml(filename)
@@ -26,7 +26,7 @@ class GPOConnection:
 
     def write(self, filename, config):
         ext = os.path.splitext(filename)[-1]
-        if ext == '.inf':
+        if ext == '.inf' or ext == '.ini':
             self.__write_inf(filename, config)
         elif ext == '.xml':
             self.__write_xml(filename, config)
