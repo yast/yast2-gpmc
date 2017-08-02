@@ -6,6 +6,8 @@ from ConfigParser import ConfigParser
 from StringIO import StringIO
 import xml.etree.ElementTree as etree
 import os.path
+from samba.net import Net
+from samba.dcerpc import nbt
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
@@ -65,10 +67,12 @@ class GPOConnection:
         self.conn.savefile(self.path + filename, value)
 
 class GPQuery:
-    def __init__(self, realm, user, password):
-        self.l = ldap.open(realm)
-        self.l.bind_s('%s@%s' % (user, realm), password)
-        self.realm = realm
+    def __init__(self, lp, creds):
+        self.realm = lp.get('realm')
+        net = Net(creds=creds, lp=lp)
+        cldap_ret = net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
+        self.l = ldap.open(cldap_ret.pdc_dns_name)
+        self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
 
     def __realm_to_dn(self, realm):
         return ','.join(['dc=%s' % part for part in realm.split('.')])
