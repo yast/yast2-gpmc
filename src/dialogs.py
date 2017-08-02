@@ -29,6 +29,7 @@ class GPME:
         Wizard.DisableAbortButton()
         UI.SetFocus(Term('id', 'gpme_tree'))
 
+        policy = None
         ret = Symbol('abort')
         while True:
             ret = UI.UserInput()
@@ -36,23 +37,28 @@ class GPME:
             if str(ret) in ['back', 'abort', 'next']:
                 break
             elif str(ret) == 'gpme_tree':
-                selection = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
-                UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(selection))
-            elif str(ret)[-6:] == '_table':
-                selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
-                policy = str(ret)[:-6].replace('_', ' ').title()
+                policy = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
+                UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(policy))
+                continue
+            if str(ret)[-6:] == '_table' or str(ret) == 'add_policy':
+                if str(ret)[-6:] == '_table':
+                    policy = str(ret)[:-6].replace('_', ' ').title()
                 conf = self.conn.parse(Policies[policy]['file'])
-                opts = Policies[policy]['opts'](conf)
-                UI.OpenDialog(self.__change_setting(opts[selection]['desc'], opts[selection]['values']))
+                if str(ret)[-6:] == '_table':
+                    selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
+                    values = Policies[policy]['opts'](conf)[selection]['values']
+                elif str(ret) == 'add_policy':
+                    values = Policies[policy]['add'](conf)
+                UI.OpenDialog(self.__change_setting(values))
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
-                        for k in opts[selection]['values'].keys():
+                        for k in values.keys():
                             value = UI.QueryWidget(Term('id', 'entry_%s' % k), Symbol('Value'))
-                            if opts[selection]['values'][k]['input']['options']:
-                                value = opts[selection]['values'][k]['input']['options'][value.strip()]
-                            if opts[selection]['values'][k]['set']:
-                                opts[selection]['values'][k]['set'](value.strip())
+                            if values[k]['input']['options']:
+                                value = values[k]['input']['options'][value.strip()]
+                            if values[k]['set']:
+                                values[k]['set'](value.strip())
                         self.conn.write(Policies[policy]['file'], conf)
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
@@ -62,7 +68,7 @@ class GPME:
 
         return ret
 
-    def __change_values_prompt(self, setting, values):
+    def __change_values_prompt(self, values):
         from ycp import *
         ycp.widget_names()
 
@@ -77,17 +83,17 @@ class GPME:
                     combo_options.append(Term('item', sk, current == sk))
                 items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
             elif values[k]['input']['type'] == 'Label':
-                items.append(Left(Label(values[k]['get'])))
+                items.append(Left(Label('%s: %s' % (values[k]['title'], values[k]['get']))))
         items = tuple(items)
-        return Frame(setting, VBox(*items))
+        return VBox(*items)
 
-    def __change_setting(self, setting, values):
+    def __change_setting(self, values):
         from ycp import *
         ycp.widget_names()
 
         contents = MinWidth(30, HBox(HSpacing(), VBox(
             VSpacing(),
-            self.__change_values_prompt(setting, values),
+            self.__change_values_prompt(values),
             VSpacing(),
             Right(HBox(
                 PushButton(Term('id', 'ok_change_setting'), 'OK'),
@@ -111,19 +117,21 @@ class GPME:
         opts = terms['opts'](conf)
         header = None
         for key in opts:
+            values = sorted(opts[key]['values'].values(), key=(lambda x : x['order']))
             if not header:
-                header = [opts[key]['title']]
-                for k in opts[key]['values'].keys():
-                    header.append(opts[key]['values'][k]['title'])
-                header = tuple(header)
-            vals = [opts[key]['desc']]
-            for k in opts[key]['values'].keys():
-                val = opts[key]['values'][k]['get']
-                vals.append(opts[key]['values'][k]['valstr'](val))
-            vals = tuple(vals)
+                header = tuple([k['title'] for k in values])
+            vals = tuple([k['valstr'](k['get']) for k in values])
             items.append(Term('item', Term('id', key), *vals))
+        buttons = []
+        if terms['add']:
+            buttons.append(PushButton(Term('id', 'add_policy'), Term('opt', 'disabled'), 'Add'))
+        buttons.append(PushButton(Term('id', 'delete_policy'), 'Delete'))
+        buttons = tuple(buttons)
 
-        return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', *header), items)
+        return VBox(
+            Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', *header), items),
+            Right(HBox(*buttons)),
+        )
 
     def __gpme_page(self):
         from ycp import *
@@ -148,7 +156,12 @@ class GPME:
                     ),
                     Term('item', 'Windows Settings', False,
                         [
-                            Term('item', 'Scripts', False, []),
+                            Term('item', 'Scripts', False,
+                                [
+                                    Term('item', 'Startup', False, []),
+                                    Term('item', 'Shutdown', False, []),
+                                ]
+                            ),
                             Term('item', 'Security Settings', False,
                                 [
                                     Term('item', 'Account Policy', False,

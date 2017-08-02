@@ -11,21 +11,27 @@ def set_inf_value(inf_conf, section, key, value):
     elif inf_conf.has_section(section) and inf_conf.has_option(section, key):
         inf_conf.remove_option(section, key)
 
-def iter_scripts_conf(inf_conf):
-    for section in inf_conf.sections():
-        for option in inf_conf.options(section):
-            if 'CmdLine' in option:
-                yield option.encode('ascii'), section.encode('ascii')
+def iter_scripts_conf(inf_conf, section):
+    for option in inf_conf.options(section):
+        if 'CmdLine' in option:
+            yield option.encode('ascii')
+
+def script_get_next_option(inf_conf, section):
+    high_digit = -1
+    for option in inf_conf.options(section):
+        if 'CmdLine' in option:
+            val = int(option[:-7])
+            if val > high_digit:
+                high_digit = val
+    return '%dCmdLine' % (high_digit+1)
 
 Policies = {
     'Password Policy' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'MinimumPasswordAge' : {
-                'desc' : 'Minimum password age',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'MinimumPasswordAge',
+                    inf_conf, 'MinimumPasswordAge', 'Minimum password age',
                     (lambda v : '%s days' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -34,10 +40,8 @@ Policies = {
                 ),
             },
             'MaximumPasswordAge' : {
-                'desc' : 'Maximum password age',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'MaximumPasswordAge',
+                    inf_conf, 'MaximumPasswordAge', 'Maximum password age',
                     (lambda v : '%s days' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -46,10 +50,8 @@ Policies = {
                 ),
             },
             'MinimumPasswordLength' : {
-                'desc' : 'Minimum password length',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'MinimumPasswordLength',
+                    inf_conf, 'MinimumPasswordLength', 'Minimum password length',
                     (lambda v : '%s characters' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -58,10 +60,8 @@ Policies = {
                 ),
             },
             'PasswordComplexity' : {
-                'desc' : 'Password must meet complexity requirements',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'PasswordComplexity',
+                    inf_conf, 'PasswordComplexity', 'Password must meet complexity requirements',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
                         'type' : 'ComboBox',
@@ -70,10 +70,8 @@ Policies = {
                 ),
             },
             'PasswordHistorySize' : {
-                'desc' : 'Enforce password history',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'PasswordHistorySize',
+                    inf_conf, 'PasswordHistorySize', 'Enforce password history',
                     (lambda v : '%s passwords remembered' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -82,10 +80,8 @@ Policies = {
                 ),
             },
             'ClearTextPassword' : {
-                'desc' : 'Store passwords using reversible encryption',
-                'title' : 'Policy',
                 'values' : Policies['Password Policy']['values'](
-                    inf_conf, 'ClearTextPassword',
+                    inf_conf, 'ClearTextPassword', 'Store passwords using reversible encryption',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
                         'type' : 'ComboBox',
@@ -94,8 +90,21 @@ Policies = {
                 ),
             },
         } ),
-        'values' : (lambda conf, setting, valstr, _input : {
+        'add' : None,
+        'values' : (lambda conf, setting, desc, valstr, _input : {
+            'policy' : {
+                'order' : 0,
+                'title' : 'Policy',
+                'get' : setting,
+                'set' : None,
+                'valstr' : (lambda v : desc),
+                'input' : {
+                    'type' : 'Label',
+                    'options' : None,
+                },
+            },
             'value' : {
+                'order' : 1,
                 'title' : 'Policy Setting',
                 'get' : fetch_inf_value(conf, 'System Access', setting),
                 'set' : (lambda v : set_inf_value(conf, 'System Access', setting, v)),
@@ -108,10 +117,8 @@ Policies = {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'LockoutDuration' : {
-                'desc' : 'Account lockout duration',
-                'title' : 'Policy',
                 'values' : Policies['Account Lockout Policy']['values'](
-                    inf_conf, 'LockoutDuration',
+                    inf_conf, 'LockoutDuration', 'Account lockout duration',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -120,10 +127,8 @@ Policies = {
                 ),
             },
             'LockoutBadCount' : {
-                'desc' : 'Account lockout threshold',
-                'title' : 'Policy',
                 'values' : Policies['Account Lockout Policy']['values'](
-                    inf_conf, 'LockoutBadCount',
+                    inf_conf, 'LockoutBadCount', 'Account lockout threshold',
                     (lambda v : '%s invalid logon attempts' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -132,10 +137,8 @@ Policies = {
                 ),
             },
             'ResetLockoutCount' : {
-                'desc' : 'Reset account lockout counter after',
-                'title' : 'Policy',
                 'values' : Policies['Account Lockout Policy']['values'](
-                    inf_conf, 'ResetLockoutCount',
+                    inf_conf, 'ResetLockoutCount', 'Reset account lockout counter after',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -144,8 +147,21 @@ Policies = {
                 ),
             },
         } ),
-        'values' : (lambda conf, setting, valstr, _input : {
+        'add' : None,
+        'values' : (lambda conf, setting, desc, valstr, _input : {
+            'policy' : {
+                'order' : 0,
+                'title' : 'Policy',
+                'get' : setting,
+                'set' : None,
+                'valstr' : (lambda v : desc),
+                'input' : {
+                    'type' : 'Label',
+                    'options' : None,
+                },
+            },
             'value' : {
+                'order' : 1,
                 'title' : 'Policy Setting',
                 'get' : fetch_inf_value(conf, 'System Access', setting),
                 'set' : (lambda v : set_inf_value(conf, 'System Access', setting, v)),
@@ -158,10 +174,8 @@ Policies = {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'MaxTicketAge' : {
-                'desc' : 'Maximum lifetime for user ticket',
-                'title' : 'Policy',
                 'values' : Policies['Kerberos Policy']['values'](
-                    inf_conf, 'MaxTicketAge',
+                    inf_conf, 'MaxTicketAge', 'Maximum lifetime for user ticket',
                     (lambda v : '%s hours' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -170,10 +184,8 @@ Policies = {
                 ),
             },
             'MaxRenewAge' : {
-                'desc' : 'Maximum lifetime for user ticket renewal',
-                'title' : 'Policy',
                 'values' : Policies['Kerberos Policy']['values'](
-                    inf_conf, 'MaxRenewAge',
+                    inf_conf, 'MaxRenewAge', 'Maximum lifetime for user ticket renewal',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -182,10 +194,8 @@ Policies = {
                 ),
             },
             'MaxServiceAge' : {
-                'desc' : 'Maximum lifetime for service ticket',
-                'title' : 'Policy',
                 'values' : Policies['Kerberos Policy']['values'](
-                    inf_conf, 'MaxServiceAge',
+                    inf_conf, 'MaxServiceAge', 'Maximum lifetime for service ticket',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -194,10 +204,8 @@ Policies = {
                 ),
             },
             'MaxClockSkew' : {
-                'desc' : 'Maximum tolerance for computer clock synchronization',
-                'title' : 'Policy',
                 'values' : Policies['Kerberos Policy']['values'](
-                    inf_conf, 'MaxClockSkew',
+                    inf_conf, 'MaxClockSkew', 'Maximum tolerance for computer clock synchronization',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
                         'type' : 'TextEntry',
@@ -206,10 +214,8 @@ Policies = {
                 ),
             },
             'TicketValidateClient' : {
-                'desc' : 'Enforce user logon restrictions',
-                'title' : 'Policy',
                 'values' : Policies['Kerberos Policy']['values'](
-                    inf_conf, 'TicketValidateClient',
+                    inf_conf, 'TicketValidateClient', 'Enforce user logon restrictions',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
                         'type' : 'ComboBox',
@@ -218,8 +224,21 @@ Policies = {
                 ),
             },
         } ),
-        'values' : (lambda conf, setting, valstr, _input : {
+        'add' : None,
+        'values' : (lambda conf, setting, desc, valstr, _input : {
+            'policy' : {
+                'order' : 0,
+                'title' : 'Policy',
+                'get' : setting,
+                'set' : None,
+                'valstr' : (lambda v : desc),
+                'input' : {
+                    'type' : 'Label',
+                    'options' : None,
+                },
+            },
             'value' : {
+                'order' : 1,
                 'title' : 'Policy Setting',
                 'get' : fetch_inf_value(conf, 'Kerberos Policy', setting),
                 'set' : (lambda v : set_inf_value(conf, 'Kerberos Policy', setting, v)),
@@ -232,15 +251,26 @@ Policies = {
         'file': '\\MACHINE\\Preferences\\EnvironmentVariables\\EnvironmentVariables.xml',
         'opts' : (lambda xml_conf : {
             a.attrib['name']: {
-                'desc' : a.attrib['name'],
-                'title' : 'Name',
                 'values' : Policies['Environment']['values'](a),
             } for a in xml_conf.findall('EnvironmentVariable')
         } ),
+        'add' : (lambda xml_conf : Policies['Environment']['values'](etree.SubElement(xml_conf, 'EnvironmentVariable'))),
         'values' : (lambda a : {
+            'name' : {
+                'order' : 0,
+                'title' : 'Name',
+                'get' : a.attrib['name'] if 'name' in a.attrib else '',
+                'set' : (lambda v : a.set('name', v) and a.find('Properties').set('name', v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
             'value' : {
+                'order' : 2,
                 'title' : 'Value',
-                'get' : a.find('Properties').attrib['value'],
+                'get' : a.find('Properties').attrib['value'] if 'value' in a.find('Properties').attrib else '',
                 'set' : (lambda v : a.find('Properties').set('value', v)),
                 'valstr' : (lambda v : v),
                 'input' : {
@@ -249,8 +279,9 @@ Policies = {
                 },
             },
             'user' : {
+                'order' : 3,
                 'title' : 'User',
-                'get' : a.find('Properties').attrib['user'],
+                'get' : a.find('Properties').attrib['user'] if 'user' in a.find('Properties').attrib else '',
                 'set' : (lambda v : a.find('Properties').set('user', v)),
                 'valstr' : (lambda v : 'No' if int(v) == 0 else 'Yes'),
                 'input' : {
@@ -259,8 +290,9 @@ Policies = {
                 },
             },
             'action' : {
+                'order' : 1,
                 'title' : 'Action',
-                'get' : a.find('Properties').attrib['action'],
+                'get' : a.find('Properties').attrib['action'] if 'action' in a.find('Properties').attrib else '',
                 'set' : (lambda v : a.find('Properties').set('action', v)),
                 'valstr' : (lambda v : {'U' : 'Update', 'C' : 'Create', 'R' : 'Replace', 'D' : 'Delete'}[v]),
                 'input' : {
@@ -270,30 +302,64 @@ Policies = {
             },
         } ),
     },
-    'Scripts': {
+    'Startup': {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
         'opts' : (lambda inf_conf : {
-            '%s:%s' % (option, section) : {
-                'desc' : inf_conf.get(section, option).encode('ascii'),
-                'title' : 'Name',
-                'values' : Policies['Scripts']['values'](inf_conf, section, option),
-            } for option, section in iter_scripts_conf(inf_conf)
+            option : {
+                'values' : Policies['Startup']['values'](inf_conf, option),
+            } for option in iter_scripts_conf(inf_conf, 'Startup')
         } ),
-        'values' : (lambda inf_conf, section, option : {
-            'type' : {
-                'title' : 'Type',
-                'get' : section,
-                'set' : None,
+        'add' : (lambda inf_conf : Policies['Startup']['values'](inf_conf, script_get_next_option(inf_conf, 'Startup'))),
+        'values' : (lambda inf_conf, option : {
+            'CmdLine' : {
+                'order' : 0,
+                'title' : 'CmdLine',
+                'get' : inf_conf.get('Startup', option).encode('ascii') if inf_conf.has_option('Startup', option) else '',
+                'set' : (lambda v : inf_conf.set('Startup', option, v)),
                 'valstr' : (lambda v : v),
                 'input' : {
-                    'type' : 'Label',
+                    'type' : 'TextEntry',
                     'options' : None,
                 },
             },
             'Parameters' : {
+                'order' : 1,
                 'title' : 'Parameters',
-                'get' : inf_conf.get(section, '%sParameters' % option[:-7]).encode('ascii'),
-                'set' : (lambda v : inf_conf.set(section, '%sParameters' % option[:-7], v)),
+                'get' : inf_conf.get('Startup', '%sParameters' % option[:-7]).encode('ascii') if inf_conf.has_option('Startup', '%sParameters' % option[:-7]) else '',
+                'set' : (lambda v : inf_conf.set('Startup', '%sParameters' % option[:-7], v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+        } ),
+    },
+    'Shutdown': {
+        'file' : '\\MACHINE\\Scripts\\scripts.ini',
+        'opts' : (lambda inf_conf : {
+            option : {
+                'values' : Policies['Shutdown']['values'](inf_conf, option),
+            } for option in iter_scripts_conf(inf_conf, 'Shutdown')
+        } ),
+        'add' : (lambda inf_conf : Policies['Shutdown']['values'](inf_conf, script_get_next_option(inf_conf, 'Shutdown'))),
+        'values' : (lambda inf_conf, option : {
+            'CmdLine' : {
+                'order' : 0,
+                'title' : 'CmdLine',
+                'get' : inf_conf.get('Shutdown', option).encode('ascii') if inf_conf.has_option('Shutdown', option) else '',
+                'set' : (lambda v : inf_conf.set('Shutdown', option, v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+            'Parameters' : {
+                'order' : 1,
+                'title' : 'Parameters',
+                'get' : inf_conf.get('Shutdown', '%sParameters' % option[:-7]).encode('ascii') if inf_conf.has_option('Shutdown', '%sParameters' % option[:-7]) else '',
+                'set' : (lambda v : inf_conf.set('Shutdown', '%sParameters' % option[:-7], v)),
                 'valstr' : (lambda v : v),
                 'input' : {
                     'type' : 'TextEntry',
