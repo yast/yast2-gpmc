@@ -15,7 +15,7 @@ def iter_scripts_conf(inf_conf):
     for section in inf_conf.sections():
         for option in inf_conf.options(section):
             if 'CmdLine' in option:
-                yield option, section
+                yield option.encode('ascii'), section.encode('ascii')
 
 Policies = {
     'Password Policy' : {
@@ -274,7 +274,7 @@ Policies = {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
         'opts' : (lambda inf_conf : {
             '%s:%s' % (option, section) : {
-                'desc' : inf_conf.get(section, option),
+                'desc' : inf_conf.get(section, option).encode('ascii'),
                 'title' : 'Name',
                 'values' : Policies['Scripts']['values'](inf_conf, section, option),
             } for option, section in iter_scripts_conf(inf_conf)
@@ -292,7 +292,7 @@ Policies = {
             },
             'Parameters' : {
                 'title' : 'Parameters',
-                'get' : inf_conf.get(section, '%sParameters' % option[:-7]),
+                'get' : inf_conf.get(section, '%sParameters' % option[:-7]).encode('ascii'),
                 'set' : (lambda v : inf_conf.set(section, '%sParameters' % option[:-7], v)),
                 'valstr' : (lambda v : v),
                 'input' : {

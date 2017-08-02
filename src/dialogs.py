@@ -148,7 +148,7 @@ class GPME:
                     ),
                     Term('item', 'Windows Settings', False,
                         [
-                            Term('item', 'Scripts (Startup/Shutdown)', False, []),
+                            Term('item', 'Scripts', False, []),
                             Term('item', 'Security Settings', False,
                                 [
                                     Term('item', 'Account Policy', False,
