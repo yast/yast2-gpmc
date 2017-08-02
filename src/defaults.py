@@ -302,8 +302,6 @@ Policies = {
             },
         } ),
     },
-    'Software installation' : {
-    },
 }
 
 if __name__ == "__main__":

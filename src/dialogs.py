@@ -37,20 +37,7 @@ class GPME:
                 break
             elif str(ret) == 'gpme_tree':
                 selection = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
-                if selection == 'Password Policy':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__password_policy())
-                elif selection == 'Account Lockout Policy':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__account_lockout_policy())
-                elif selection == 'Kerberos Policy':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__kerberos_policy())
-                elif selection == 'Scripts (Startup/Shutdown)':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__scripts())
-                elif selection == 'Software installation':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__software_installation())
-                elif selection == 'Environment':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__environment())
-                else:
-                    UI.ReplaceWidget(Term('id', 'rightPane'), Term('Empty'))
+                UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(selection))
             elif str(ret)[-12:] == 'policy_table':
                 selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                 policy = str(ret)[:-6].replace('_', ' ').title()
@@ -70,14 +57,7 @@ class GPME:
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         break
-                if str(ret) == 'password_policy_table':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__password_policy())
-                elif str(ret) == 'account_lockout_policy_table':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__account_lockout_policy())
-                elif str(ret) == 'kerberos_policy_table':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__kerberos_policy())
-                elif str(ret) == 'environment_policy_table':
-                    UI.ReplaceWidget(Term('id', 'rightPane'), self.__environment())
+                UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(policy))
                 UI.SetFocus(Term('id', str(ret)))
 
         return ret
@@ -118,10 +98,14 @@ class GPME:
         ), HSpacing() ))
         return contents
 
-    def __display_policy(self, terms, id_label):
+    def __display_policy(self, label):
         from ycp import *
         ycp.widget_names()
 
+        if not label in Policies.keys():
+            return Term('Empty')
+        terms = Policies[label]
+        id_label = '%s_table' % label.lower().replace(' ', '_')
         items = []
         conf = self.conn.parse(terms['file'])
         opts = terms['opts'](conf)
@@ -140,27 +124,6 @@ class GPME:
             items.append(Term('item', Term('id', key), *vals))
 
         return Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', *header), items)
-
-    def __password_policy(self):
-        return self.__display_policy(Policies['Password Policy'], 'password_policy_table')
-
-    def __account_lockout_policy(self):
-        return self.__display_policy(Policies['Account Lockout Policy'], 'account_lockout_policy_table')
-
-    def __kerberos_policy(self):
-        return self.__display_policy(Policies['Kerberos Policy'], 'kerberos_policy_table')
-
-    def __environment(self):
-        return self.__display_policy(Policies['Environment'], 'environment_table')
-
-    def __scripts(self):
-        return self.__display_policy(Policies['Scripts'], 'scripts_table')
-
-    def __software_installation(self):
-        from ycp import *
-        ycp.widget_names()
-
-        return RichText('contents')
 
     def __gpme_page(self):
         from ycp import *
@@ -229,7 +192,7 @@ class GPMC:
         self.__get_creds(creds)
         self.realm = lp.get('realm')
         try:
-            self.q = GPQuery(self.realm, creds.get_username(), creds.get_password())
+            self.q = GPQuery(lp, creds)
             self.gpos = self.q.gpo_list()
         except:
             self.gpos = []
