@@ -38,7 +38,7 @@ class GPME:
             elif str(ret) == 'gpme_tree':
                 selection = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
                 UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(selection))
-            elif str(ret)[-12:] == 'policy_table':
+            elif str(ret)[-6:] == '_table':
                 selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                 policy = str(ret)[:-6].replace('_', ' ').title()
                 conf = self.conn.parse(Policies[policy]['file'])
