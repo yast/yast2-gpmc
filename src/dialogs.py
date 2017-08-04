@@ -42,6 +42,8 @@ class GPME:
                 continue
             if str(ret) == 'policy_table' or str(ret) == 'add_policy':
                 conf = self.conn.parse(Policies[policy]['file'])
+                if not conf:
+                    conf = Policies[policy]['new']()
                 if str(ret) == 'policy_table':
                     selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                     values = Policies[policy]['opts'](conf)[selection]['values']
@@ -111,12 +113,12 @@ class GPME:
         terms = Policies[label]
         items = []
         conf = self.conn.parse(terms['file'])
+        if conf is None:
+            conf = terms['new']()
         opts = terms['opts'](conf)
-        header = None
+        header = terms['header']()
         for key in opts:
             values = sorted(opts[key]['values'].values(), key=(lambda x : x['order']))
-            if not header:
-                header = tuple([k['title'] for k in values])
             vals = tuple([k['valstr'](k['get']) for k in values])
             items.append(Term('item', Term('id', key), *vals))
         buttons = []

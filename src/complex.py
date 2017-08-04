@@ -51,9 +51,9 @@ class GPOConnection:
         if self.conn:
             try:
                 policy = self.conn.loadfile(self.path + filename)
+                xml_conf = etree.fromstring(policy)
             except:
-                policy = ''
-            xml_conf = etree.fromstring(policy)
+                xml_conf = None
         return xml_conf
 
     def __write_inf(self, filename, inf_config):
