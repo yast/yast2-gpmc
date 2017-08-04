@@ -40,11 +40,9 @@ class GPME:
                 policy = UI.QueryWidget(Term('id', 'gpme_tree'), Symbol('CurrentItem'))
                 UI.ReplaceWidget(Term('id', 'rightPane'), self.__display_policy(policy))
                 continue
-            if str(ret)[-6:] == '_table' or str(ret) == 'add_policy':
-                if str(ret)[-6:] == '_table':
-                    policy = str(ret)[:-6].replace('_', ' ').title()
+            if str(ret) == 'policy_table' or str(ret) == 'add_policy':
                 conf = self.conn.parse(Policies[policy]['file'])
-                if str(ret)[-6:] == '_table':
+                if str(ret) == 'policy_table':
                     selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
                     values = Policies[policy]['opts'](conf)[selection]['values']
                 elif str(ret) == 'add_policy':
@@ -111,7 +109,6 @@ class GPME:
         if not label in Policies.keys():
             return Term('Empty')
         terms = Policies[label]
-        id_label = '%s_table' % label.lower().replace(' ', '_')
         items = []
         conf = self.conn.parse(terms['file'])
         opts = terms['opts'](conf)
@@ -129,7 +126,7 @@ class GPME:
         buttons = tuple(buttons)
 
         return VBox(
-            Table(Term('id', id_label), Term('opt', Symbol('notify')), Term('header', *header), items),
+            Table(Term('id', 'policy_table'), Term('opt', Symbol('notify')), Term('header', *header), items),
             Right(HBox(*buttons)),
         )
 
