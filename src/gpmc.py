@@ -51,14 +51,6 @@ if __name__ == "__main__":
     else:
         init_ui('qt')
 
-    import_module('CommandLine')
-    import  wizards, Gpmc
-    from ycp import *
-
-    cmdline_description = {
-        'id'    : 'gpmc',
-        'guihandler'        : Code(wizards.GPMCSequence(lp, creds)),
-    }
-
-    CommandLine.Run(cmdline_description);
+    import wizards
+    wizards.GPMCSequence(lp, creds)
 
