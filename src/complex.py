@@ -49,6 +49,7 @@ class GPOConnection:
         return inf_conf
 
     def __parse_xml(self, filename):
+        xml_conf = None
         if self.conn:
             try:
                 policy = self.conn.loadfile(self.path + filename)
