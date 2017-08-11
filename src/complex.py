@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import ldap, ldap.modlist
+import ldap, ldap.modlist, ldap.sasl
 from samba import smb
 from ConfigParser import ConfigParser
 from StringIO import StringIO
@@ -8,6 +8,7 @@ import xml.etree.ElementTree as etree
 import os.path
 from samba.net import Net
 from samba.dcerpc import nbt
+from subprocess import Popen, PIPE
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
@@ -71,8 +72,17 @@ class GPQuery:
         self.realm = lp.get('realm')
         net = Net(creds=creds, lp=lp)
         cldap_ret = net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
-        self.l = ldap.open(cldap_ret.pdc_dns_name)
-        self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
+        self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
+        if self.__kinit_for_gssapi(creds):
+            auth_tokens = ldap.sasl.gssapi('')
+            self.l.sasl_interactive_bind_s('', auth_tokens)
+        else:
+            self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
+
+    def __kinit_for_gssapi(self, creds):
+        p = Popen(['kinit', '%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username()], stdin=PIPE, stdout=PIPE)
+        p.stdin.write('%s\n' % creds.get_password())
+        return p.wait() == 0
 
     def __realm_to_dn(self, realm):
         return ','.join(['dc=%s' % part for part in realm.split('.')])
