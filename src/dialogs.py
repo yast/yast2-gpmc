@@ -295,13 +295,13 @@ class GPMC:
                     elif str(ret) == 'gpo_status' and self.q:
                         combo_choice = UI.QueryWidget(Term('id', 'gpo_status'), Symbol('Value'))
                         if combo_choice == 'All settings disabled':
-                            self.q.set_attrs(self.selected_gpo[0], {'flags': self.selected_gpo[1]['flags']}, {'flags': ['3']})
+                            self.q.set_attr(self.selected_gpo[0], 'flags', ['3'])
                         elif combo_choice == 'Computer configuration settings disabled':
-                            self.q.set_attrs(self.selected_gpo[0], {'flags': self.selected_gpo[1]['flags']}, {'flags': ['2']})
+                            self.q.set_attr(self.selected_gpo[0], 'flags', ['2'])
                         elif combo_choice == 'Enabled':
-                            self.q.set_attrs(self.selected_gpo[0], {'flags': self.selected_gpo[1]['flags']}, {'flags': ['0']})
+                            self.q.set_attr(self.selected_gpo[0], 'flags', ['0'])
                         elif combo_choice == 'User configuration settings disabled':
-                            self.q.set_attrs(self.selected_gpo[0], {'flags': self.selected_gpo[1]['flags']}, {'flags': ['1']})
+                            self.q.set_attr(self.selected_gpo[0], 'flags', ['1'])
 
         return (self.selected_gpo, ret)
 

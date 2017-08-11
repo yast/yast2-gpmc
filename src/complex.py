@@ -103,6 +103,6 @@ class GPQuery:
     def gpo_list(self):
         return self.l.search_s(self.well_known_container('system'), ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
 
-    def set_attrs(self, dn, old_values, new_values):
-        l.modify(dn, ldap.modlist.modifyModlist(old_values, new_values))
+    def set_attr(self, dn, key, value):
+        self.l.modify(dn, [(1, key, None), (0, key, value)])
 
