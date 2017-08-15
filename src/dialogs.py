@@ -14,7 +14,7 @@ ycp.import_module('Label')
 
 import Gpmc
 from defaults import Policies, fetch_inf_value
-from complex import GPQuery, GPOConnection
+from complex import GPQuery, GPOConnection, CreateGPO
 import re
 
 class GPME:
@@ -203,6 +203,8 @@ class GPMC:
     def __init__(self, lp, creds):
         self.__get_creds(creds)
         self.realm = lp.get('realm')
+        self.lp = lp
+        self.creds = creds
         try:
             self.q = GPQuery(lp, creds)
             self.gpos = self.q.gpo_list()
@@ -264,6 +266,20 @@ class GPMC:
                 break
             elif str(ret) == 'next':
                 break
+            elif str(ret) == 'add_gpo':
+                UI.OpenDialog(self.__name_gpo())
+                while True:
+                    sret = UI.UserInput()
+                    if str(sret) == 'ok_name_gpo':
+                        gpo_name = UI.QueryWidget(Term('id', 'gpo_name_entry'), Symbol('Value'))
+                        CreateGPO(gpo_name, self.q.l, self.lp, self.creds)
+                    UI.CloseDialog()
+                    try:
+                        self.gpos = self.q.gpo_list()
+                    except:
+                        self.gpos = []
+                    Wizard.SetContentsButtons(gettext.gettext('Group Policy Management Console'), self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                    break
             elif UI.HasSpecialWidget(Symbol('DumbTab')):
                 if gpo_guid == 'Domains':
                     if current_page != None:
@@ -304,6 +320,18 @@ class GPMC:
                             self.q.set_attr(self.selected_gpo[0], 'flags', ['1'])
 
         return (self.selected_gpo, ret)
+
+    def __name_gpo(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return MinWidth(30, VBox(
+            TextEntry(Term('id', 'gpo_name_entry'), 'GPO Name', ''),
+            Right(HBox(
+                PushButton(Term('id', 'ok_name_gpo'), 'OK'),
+                PushButton(Term('id', 'cancel_name_gpo'), 'Cancel')
+            ))
+        ))
 
     def __help(self):
         return 'Group Policy Management Console'

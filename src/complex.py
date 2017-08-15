@@ -9,6 +9,8 @@ import os.path
 from samba.net import Net
 from samba.dcerpc import nbt
 from subprocess import Popen, PIPE
+import uuid
+from ldap.modlist import addModlist as addlist
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
@@ -20,6 +22,11 @@ class GPOConnection:
             self.conn = smb.SMB(path_parts[0], path_parts[1], lp=lp, creds=creds)
         except:
             self.conn = None
+
+    def initialize_empty_gpo(self):
+        self.__smb_mkdir_p('\\'.join([self.path, 'MACHINE']))
+        self.__smb_mkdir_p('\\'.join([self.path, 'USER']))
+        self.__increment_gpt_ini()
 
     def __increment_gpt_ini(self, user=False, computer=False):
         ini_conf = self.parse('GPT.INI')
@@ -170,4 +177,38 @@ class GPQuery:
 
     def set_attr(self, dn, key, value):
         self.l.modify(dn, [(1, key, None), (0, key, value)])
+
+def realm_to_dn(realm):
+    return ','.join(['dc=%s' % part for part in realm.split('.')])
+
+class CreateGPO:
+    def __init__(self, displayName, ldap, lp, creds):
+        self.uuid = uuid.uuid4()
+        self.realm = lp.get('realm')
+        self.l = ldap
+        self.lp = lp
+        self.creds = creds
+        self.__propogate(displayName)
+
+    def __propogate(self, displayName):
+        realm_dn = realm_to_dn(self.realm)
+        name = '{%s}' % str(self.uuid).upper()
+        dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
+        ldap_mod = { 'displayName': [displayName], 'gPCFileSysPath': ['\\\\%s\\SysVol\\%s\\Policies\\%s' % (self.realm, self.realm, name)], 'objectClass': ['top', 'container', 'groupPolicyContainer'], 'gPCFunctionalityVersion': ['2'], 'flags': ['0'], 'versionNumber': ['0'] }
+        # gPCMachineExtensionNames MUST be assigned as gpos are modified (currently not doing this!)
+
+        machine_dn = 'CN=Machine,%s' % dn
+        user_dn = 'CN=User,%s' % dn
+        sub_ldap_mod = { 'objectClass': ['top', 'container'] }
+
+        smb = GPOConnection(self.lp, self.creds, ldap_mod['gPCFileSysPath'][-1])
+        try:
+            self.l.add_s(dn, addlist(ldap_mod))
+            self.l.add_s(machine_dn, addlist(sub_ldap_mod))
+            self.l.add_s(user_dn, addlist(sub_ldap_mod))
+
+            smb.initialize_empty_gpo()
+            # TODO: GPO links
+        except Exception as e:
+            print str(e)
 
