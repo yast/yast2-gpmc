@@ -264,6 +264,14 @@ class GPMC:
                 break
             elif str(ret) == 'next':
                 break
+            elif str(ret) == 'add_gpo':
+                UI.OpenDialog(self.__name_gpo())
+                while True:
+                    sret = UI.UserInput()
+                    if str(sret) == 'ok_name_gpo':
+                        pass
+                    UI.CloseDialog()
+                    break
             elif UI.HasSpecialWidget(Symbol('DumbTab')):
                 if gpo_guid == 'Domains':
                     if current_page != None:
@@ -304,6 +312,18 @@ class GPMC:
                             self.q.set_attr(self.selected_gpo[0], 'flags', ['1'])
 
         return (self.selected_gpo, ret)
+
+    def __name_gpo(self):
+        from ycp import *
+        ycp.widget_names()
+
+        return MinWidth(30, VBox(
+            TextEntry(Term('id', 'gpo_name_entry'), 'GPO Name', ''),
+            Right(HBox(
+                PushButton(Term('id', 'ok_name_gpo'), 'OK'),
+                PushButton(Term('id', 'cancel_name_gpo'), 'Cancel')
+            ))
+        ))
 
     def __help(self):
         return 'Group Policy Management Console'
