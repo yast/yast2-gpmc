@@ -384,7 +384,31 @@ class GPMC:
         from ycp import *
         ycp.widget_names()
 
-        return Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Term('id', 'realm_tabContainer'), Term('Empty'))))
+        return VBox(
+            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Term('id', 'realm_tabContainer'), self.__realm_links()))),
+            Right(HBox(PushButton(Term('id', 'add_gpo'), 'Create a GPO'))),
+        )
+
+    def __realm_links(self):
+        from ycp import *
+        ycp.widget_names()
+
+        header = ('Link Order', 'GPO', 'Enforced', 'Link Enabled', 'GPO Status', 'WMI Filter', 'Modified', 'Domain')
+        contents = []
+        for gpo in self.gpos:
+            status = ''
+            if gpo[1]['flags'][-1] == '0':
+                status = 'Enabled'
+            elif gpo[1]['flags'][-1] == '1':
+                status = 'User configuration settings disabled'
+            elif gpo[1]['flags'][-1] == '2':
+                status = 'Computer configuration settings disabled'
+            elif gpo[1]['flags'][-1] == '3':
+                status = 'All settings disabled'
+            vals = ('', gpo[1]['displayName'][-1], '', '', status, '', self.__ms_time_to_readable(gpo[1]['whenChanged'][-1]), '')
+            contents.append(Term('item', *vals))
+
+        return Table(Term('id', 'link_order'), Term('header', *header), contents)
 
     def __gpo_tab(self, gpo_guid):
         from ycp import *
