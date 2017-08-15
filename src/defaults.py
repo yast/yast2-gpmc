@@ -34,10 +34,10 @@ def script_get_next_option(inf_conf, section):
     else:
         return '0CmdLine'
 
-def script_set_option(inf_conf, section, option):
+def script_set_option(inf_conf, section, option, v):
     if not inf_conf.has_section(section):
         inf_conf.add_section(section)
-    inf_conf.set(section, option)
+    inf_conf.set(section, option, v)
 
 def new_environment_tree():
     top = etree.Element('EnvironmentVariables')
