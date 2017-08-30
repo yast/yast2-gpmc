@@ -12,6 +12,9 @@ ynclude_DATA =			\
 	dialogs.py		\
 	complex.py
 
+gpmc.desktop: gpmc.desktop.in
+	sed -e 's;[@]CLIENTDIR[@];$(clientdir);g' < $(srcdir)/gpmc.desktop.in > $(srcdir)/gpmc.desktop
+
 desktopdir = ${prefix}/share/applications/YaST2
 desktop_DATA =			\
 	gpmc.desktop
