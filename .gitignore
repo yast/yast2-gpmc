@@ -7,3 +7,4 @@ configure
 install-sh
 missing
 autom4te.cache
+*.pyc
