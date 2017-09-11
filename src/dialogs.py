@@ -42,7 +42,7 @@ class GPME:
                 continue
             if str(ret) == 'policy_table' or str(ret) == 'add_policy':
                 conf = self.conn.parse(Policies[policy]['file'])
-                if not conf:
+                if conf is None:
                     conf = Policies[policy]['new']()
                 if str(ret) == 'policy_table':
                     selection = UI.QueryWidget(Term('id', str(ret)), Symbol('CurrentItem'))
