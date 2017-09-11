@@ -58,15 +58,45 @@ class GPOConnection:
                 xml_conf = None
         return xml_conf
 
+    def __smb_mkdir_p(self, path):
+        directory = os.path.dirname(path.replace('\\', '/')).replace('/', '\\')
+        try:
+            self.conn.mkdir(directory)
+        except Exception as e:
+            if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
+                self.__smb_mkdir_p(directory)
+            elif e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+                pass
+            else:
+                print e[1]
+        try:
+            self.conn.mkdir(path)
+        except Exception as e:
+            if e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+                pass
+            else:
+                print e[1]
+
+    def __write(self, filename, text):
+        filedir = os.path.dirname((self.path + filename).replace('\\', '/')).replace('/', '\\')
+        self.__smb_mkdir_p(filedir)
+        try:
+            self.conn.savefile(self.path + filename, text)
+        except Exception as e:
+            if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
+                print e[1] % (self.path + filename)
+            else:
+                print e[1]
+
     def __write_inf(self, filename, inf_config):
         out = StringIO()
         inf_config.write(out)
         value = out.getvalue().replace('\n', '\r\n').encode('utf-16')
-        self.conn.savefile(self.path + filename, value)
+        self.__write(filename, value)
 
     def __write_xml(self, filename, xml_config):
         value = '<?xml version="1.0" encoding="utf-8"?>\r\n' + etree.tostring(xml_config, 'utf-8')
-        self.conn.savefile(self.path + filename, value)
+        self.__write(filename, value)
 
 class GPQuery:
     def __init__(self, lp, creds):
