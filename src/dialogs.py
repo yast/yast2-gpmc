@@ -351,7 +351,7 @@ class GPMC:
                     Left(Label(self.__ms_time_to_readable(self.selected_gpo[1]['whenCreated'][-1]))), VSpacing(),
                     Left(Label(self.__ms_time_to_readable(self.selected_gpo[1]['whenChanged'][-1]))), VSpacing(),
                     Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
-                    Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) & 0x0F))), VSpacing(),
+                    Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) & 0x0000FFFF))), VSpacing(),
                     Left(Label(gpo_guid)), VSpacing(),
                     Left(ComboBox(Term('id', 'gpo_status'), Term('opt', Symbol('notify')), '', combo_options)), VSpacing(),
                 )),
