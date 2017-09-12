@@ -12,12 +12,40 @@ from subprocess import Popen, PIPE
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
+        self.lp = lp
+        self.creds = creds
         path_parts = [n for n in gpo_path.split('\\') if n]
         self.path = '\\'.join(path_parts[2:])
         try:
             self.conn = smb.SMB(path_parts[0], path_parts[1], lp=lp, creds=creds)
         except:
             self.conn = None
+
+    def __increment_gpt_ini(self, user=False, computer=False):
+        ini_conf = self.parse('GPT.INI')
+        current = 0
+        cur_user = 0
+        cur_comp = 0
+        if ini_conf.has_option('General', 'Version'):
+            current = int(ini_conf.get('General', 'Version').encode('ascii'))
+            cur_user = current >> 16
+            cur_comp = current & 0x0000FFFF
+        if user:
+            cur_user += 1
+        if computer:
+            cur_comp += 1
+        current = (cur_user << 16) + cur_comp
+
+        if not ini_conf.has_section('General'):
+            ini_conf.add_section('General')
+        ini_conf.set('General', 'Version', current)
+        self.write('GPT.INI', ini_conf)
+
+        ldap = GPQuery(self.lp, self.creds)
+        name = self.path.split('\\')[2]
+        realm_dn = self.lp.get('realm')
+        gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
+        ldap.set_attr(gpo_dn, 'versionNumber', current)
 
     def parse(self, filename):
         ext = os.path.splitext(filename)[-1].lower()
@@ -34,11 +62,16 @@ class GPOConnection:
         elif ext == '.xml':
             self.__write_xml(filename, config)
 
+        if '\\machine' in filename.lower():
+            self.__increment_gpt_ini(computer=True)
+        elif '\\user' in filename.lower():
+            self.__increment_gpt_ini(user=True)
+
     def __parse_inf(self, filename):
         inf_conf = ConfigParser()
         if self.conn:
             try:
-                policy = self.conn.loadfile(self.path + filename)
+                policy = self.conn.loadfile('\\'.join([self.path, filename]))
             except:
                 policy = ''
             inf_conf.optionxform=str
@@ -52,7 +85,7 @@ class GPOConnection:
         xml_conf = None
         if self.conn:
             try:
-                policy = self.conn.loadfile(self.path + filename)
+                policy = self.conn.loadfile('\\'.join([self.path, filename]))
                 xml_conf = etree.fromstring(policy)
             except:
                 xml_conf = None
@@ -78,13 +111,14 @@ class GPOConnection:
                 print e[1]
 
     def __write(self, filename, text):
-        filedir = os.path.dirname((self.path + filename).replace('\\', '/')).replace('/', '\\')
+        path = '\\'.join([self.path, filename])
+        filedir = os.path.dirname((path).replace('\\', '/')).replace('/', '\\')
         self.__smb_mkdir_p(filedir)
         try:
-            self.conn.savefile(self.path + filename, text)
+            self.conn.savefile(path, text)
         except Exception as e:
             if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
-                print e[1] % (self.path + filename)
+                print e[1] % (path)
             else:
                 print e[1]
 
