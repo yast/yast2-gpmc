@@ -8,3 +8,4 @@ install-sh
 missing
 autom4te.cache
 *.pyc
+src/gpmc.desktop
