@@ -62,6 +62,11 @@ class GPME:
                         self.conn.write(Policies[policy]['file'], conf)
                         if Policies[policy]['gpe_extension']:
                             self.conn.update_machine_gpe_ini(Policies[policy]['gpe_extension'])
+                    elif str(subret).startswith('select_entry_'):
+                        option = str(subret)[13:]
+                        selection = values[option]['input']['action'](option, policy, self.conn)
+                        UI.ReplaceWidget(Term('id', 'button_entry_%s' % option), self.__button_entry(option, values, selection))
+                        continue
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         break
@@ -69,6 +74,12 @@ class GPME:
                 UI.SetFocus(Term('id', str(ret)))
 
         return ret
+
+    def __button_entry(self, k, values, value):
+        from ycp import *
+        ycp.widget_names()
+
+        return TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], value)
 
     def __change_values_prompt(self, values):
         from ycp import *
@@ -86,6 +97,13 @@ class GPME:
                 items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
             elif values[k]['input']['type'] == 'Label':
                 items.append(Left(Label('%s: %s' % (values[k]['title'], values[k]['get']))))
+            elif values[k]['input']['type'] == 'ButtonEntry':
+                items.append(Left(
+                    VBox(
+                        ReplacePoint(Term('id', 'button_entry_%s' % k), self.__button_entry(k, values, values[k]['get'] if values[k]['get'] else '')),
+                        PushButton(Term('id', 'select_entry_%s' % k), 'Select'),
+                    )
+                ))
         items = tuple(items)
         return VBox(*items)
 

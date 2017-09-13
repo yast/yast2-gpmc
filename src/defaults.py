@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 import xml.etree.ElementTree as etree
 import uuid
+import os.path
+
+import ycp
+ycp.import_module('UI')
+from ycp import *
+def select_script(title, script_type, conn):
+    full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)
+    conn.upload_file(full_path, 'MACHINE\\Scripts\\%s' % script_type)
+    return os.path.basename(full_path)
 
 def fetch_inf_value(inf_conf, section, key):
     return inf_conf.get(section, key).encode('ascii') if inf_conf.has_section(section) and inf_conf.has_option(section, key) else None
@@ -373,8 +382,9 @@ Policies = {
                 'set' : (lambda v : script_set_option(inf_conf, 'Startup', option, v)),
                 'valstr' : (lambda v : v),
                 'input' : {
-                    'type' : 'TextEntry',
+                    'type' : 'ButtonEntry',
                     'options' : None,
+                    'action' : select_script,
                 },
             },
             'Parameters' : {
@@ -409,8 +419,9 @@ Policies = {
                 'set' : (lambda v : script_set_option(inf_conf, 'Shutdown', option, v)),
                 'valstr' : (lambda v : v),
                 'input' : {
-                    'type' : 'TextEntry',
+                    'type' : 'ButtonEntry',
                     'options' : None,
+                    'action' : select_script,
                 },
             },
             'Parameters' : {

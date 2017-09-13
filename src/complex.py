@@ -5,7 +5,7 @@ from samba import smb
 from ConfigParser import ConfigParser
 from StringIO import StringIO
 import xml.etree.ElementTree as etree
-import os.path
+import os.path, sys
 from samba.net import Net
 from samba.dcerpc import nbt
 from subprocess import Popen, PIPE
@@ -164,6 +164,20 @@ class GPOConnection:
     def __write_xml(self, filename, xml_config):
         value = '<?xml version="1.0" encoding="utf-8"?>\r\n' + etree.tostring(xml_config, 'utf-8')
         self.__write(filename, value)
+
+    def upload_file(self, local, remote_dir):
+        remote_path = '\\'.join([self.path, remote_dir])
+        self.__smb_mkdir_p(remote_path)
+        if os.path.exists(local):
+            value = open(local).read()
+            filename = '\\'.join([remote_path, os.path.basename(local)])
+            try:
+                self.conn.savefile(filename, value)
+            except Exception as e:
+                if e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+                    sys.stderr.write('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
+                else:
+                    sys.stderr.write(e[1])
 
 class GPQuery:
     def __init__(self, lp, creds):
