@@ -6,6 +6,13 @@ def fetch_inf_value(inf_conf, section, key):
     return inf_conf.get(section, key).encode('ascii') if inf_conf.has_section(section) and inf_conf.has_option(section, key) else None
 
 def set_inf_value(inf_conf, section, key, value):
+    if not inf_conf.has_section('Unicode'):
+        inf_conf.add_section('Unicode')
+        inf_conf.set('Unicode', 'Unicode', 'yes')
+    if not inf_conf.has_section('Version'):
+        inf_conf.add_section('Version')
+        inf_conf.set('Version', 'signature', '"$CHICAGO$"')
+        inf_conf.set('Version', 'Revision', '1')
     if value:
         if not inf_conf.has_section(section):
             inf_conf.add_section(section)
