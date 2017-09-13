@@ -123,6 +123,7 @@ Policies = {
                 ),
             },
         } ),
+        'gpe_extension' : None,
         'new' : None,
         'add' : None,
         'header' : (lambda : ['Policy', 'Policy Setting']),
@@ -182,6 +183,7 @@ Policies = {
                 ),
             },
         } ),
+        'gpe_extension' : None,
         'new' : None,
         'add' : None,
         'header' : (lambda : ['Policy', 'Policy Setting']),
@@ -261,6 +263,7 @@ Policies = {
                 ),
             },
         } ),
+        'gpe_extension' : None,
         'new' : None,
         'add' : None,
         'header' : (lambda : ['Policy', 'Policy Setting']),
@@ -293,6 +296,7 @@ Policies = {
                 'values' : Policies['Environment']['values'](a),
             } for a in xml_conf.findall('EnvironmentVariable')
         } ),
+        'gpe_extension' : '{0E28E245-9368-4853-AD84-6DA3BA35BB75}{35141B6B-498A-4CC7-AD59-CEF93D89B2CE}',
         'new' : (lambda : new_environment_tree()),
         'add' : (lambda xml_conf : Policies['Environment']['values'](env_add(xml_conf))),
         'header' : (lambda : [k['title'] for k in sorted(Policies['Environment']['values'](None).values(), key=(lambda x : x['order']))]),
@@ -350,6 +354,7 @@ Policies = {
                 'values' : Policies['Startup']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Startup')
         } ),
+        'gpe_extension' : None,
         'new' : None,
         'add' : (lambda inf_conf : Policies['Startup']['values'](inf_conf, script_get_next_option(inf_conf, 'Startup'))),
         'header' : (lambda : [k['title'] for k in sorted(Policies['Startup']['values'](None, None).values(), key=(lambda x : x['order']))]),
@@ -385,6 +390,7 @@ Policies = {
                 'values' : Policies['Shutdown']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Shutdown')
         } ),
+        'gpe_extension' : None,
         'new' : None,
         'add' : (lambda inf_conf : Policies['Shutdown']['values'](inf_conf, script_get_next_option(inf_conf, 'Shutdown'))),
         'header' : (lambda : [k['title'] for k in sorted(Policies['Shutdown']['values'](None, None).values(), key=(lambda x : x['order']))]),

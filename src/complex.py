@@ -11,6 +11,7 @@ from samba.dcerpc import nbt
 from subprocess import Popen, PIPE
 import uuid
 from ldap.modlist import addModlist as addlist
+import re
 
 class GPOConnection:
     def __init__(self, lp, creds, gpo_path):
@@ -23,13 +24,33 @@ class GPOConnection:
         except:
             self.conn = None
 
+    def update_machine_gpe_ini(self, extension):
+        ini_conf = self.parse('Group Policy\\GPE.INI')
+        if not ini_conf.has_section('General'):
+            ini_conf.add_section('General')
+        machine_extension_versions = ''
+        if ini_conf.has_option('General', 'MachineExtensionVersions'):
+            machine_extension_versions = ini_conf.get('General', 'MachineExtensionVersions').encode('ascii')
+        itr = re.finditer('\[%s:\d+]' % extension, machine_extension_versions)
+        try:
+            new_ext_str = machine_extension_versions[:m.start()] + machine_extension_versions[m.end():]
+            machine_extension_versions = new_ext_str
+        except:
+            pass
+
+        _, version = self.__get_gpo_version()
+        machine_extension_versions += '[%s:%d]' % (extension, version-1)
+        ini_conf.set('General', 'MachineExtensionVersions', machine_extension_versions)
+        self.write('Group Policy\\GPE.INI', ini_conf)
+
     def initialize_empty_gpo(self):
         self.__smb_mkdir_p('\\'.join([self.path, 'MACHINE']))
         self.__smb_mkdir_p('\\'.join([self.path, 'USER']))
         self.__increment_gpt_ini()
 
-    def __increment_gpt_ini(self, user=False, computer=False):
-        ini_conf = self.parse('GPT.INI')
+    def __get_gpo_version(self, ini_conf=None):
+        if not ini_conf:
+            ini_conf = self.parse('GPT.INI')
         current = 0
         cur_user = 0
         cur_comp = 0
@@ -37,6 +58,11 @@ class GPOConnection:
             current = int(ini_conf.get('General', 'Version').encode('ascii'))
             cur_user = current >> 16
             cur_comp = current & 0x0000FFFF
+        return (cur_user, cur_comp)
+
+    def __increment_gpt_ini(self, user=False, computer=False):
+        ini_conf = self.parse('GPT.INI')
+        cur_user, cur_comp = self.__get_gpo_version(ini_conf)
         if user:
             cur_user += 1
         if computer:

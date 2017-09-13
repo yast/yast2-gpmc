@@ -60,6 +60,8 @@ class GPME:
                             if values[k]['set']:
                                 values[k]['set'](value.strip())
                         self.conn.write(Policies[policy]['file'], conf)
+                        if Policies[policy]['gpe_extension']:
+                            self.conn.update_machine_gpe_ini(Policies[policy]['gpe_extension'])
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         break
