@@ -77,7 +77,7 @@ class GPME:
         items = []
         for k in values.keys():
             if values[k]['input']['type'] == 'TextEntry':
-                items.append(Left(TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], values[k]['get'])))
+                items.append(Left(TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], values[k]['get'] if values[k]['get'] else '')))
             elif values[k]['input']['type'] == 'ComboBox':
                 combo_options = []
                 current = values[k]['valstr'](values[k]['get'])
