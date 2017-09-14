@@ -64,8 +64,10 @@ class GPME:
                             self.conn.update_machine_gpe_ini(Policies[policy]['gpe_extension'])
                     elif str(subret).startswith('select_entry_'):
                         option = str(subret)[13:]
-                        selection = values[option]['input']['action'](option, policy, self.conn)
+                        others, selection = values[option]['input']['action'](option, policy, self.conn)
                         UI.ReplaceWidget(Term('id', 'button_entry_%s' % option), self.__button_entry(option, values, selection))
+                        for k in others.keys():
+                            UI.ReplaceWidget(Term('id', 'text_entry_%s' % k), self.__button_entry(k, values, others[k]))
                         continue
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
@@ -81,14 +83,24 @@ class GPME:
 
         return TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], value)
 
+    def __label_display(self, k, values, value):
+        from ycp import *
+        ycp.widget_names()
+
+        return Label('%s: %s' % (values[k]['title'], values[k]['valstr'](value)))
+
     def __change_values_prompt(self, values):
         from ycp import *
         ycp.widget_names()
 
         items = []
         for k in values.keys():
+            if not values[k]['input']:
+                continue
             if values[k]['input']['type'] == 'TextEntry':
-                items.append(Left(TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], values[k]['get'] if values[k]['get'] else '')))
+                items.append(Left(
+                    ReplacePoint(Term('id', 'text_entry_%s' % k), TextEntry(Term('id', 'entry_%s' % k), values[k]['title'], values[k]['get'] if values[k]['get'] else ''))
+                ))
             elif values[k]['input']['type'] == 'ComboBox':
                 combo_options = []
                 current = values[k]['valstr'](values[k]['get'])
@@ -96,7 +108,9 @@ class GPME:
                     combo_options.append(Term('item', sk, current == sk))
                 items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
             elif values[k]['input']['type'] == 'Label':
-                items.append(Left(Label('%s: %s' % (values[k]['title'], values[k]['valstr'](values[k]['get'])))))
+                items.append(Left(
+                    ReplacePoint(Term('id', 'label_%s' % k), self.__label_display(k, values, values[k]['get'] if values[k]['get'] else '')),
+                ))
             elif values[k]['input']['type'] == 'ButtonEntry':
                 items.append(Left(
                     VBox(

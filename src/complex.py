@@ -11,6 +11,7 @@ from samba.dcerpc import nbt
 from subprocess import Popen, PIPE
 import uuid
 from ldap.modlist import addModlist as addlist
+from ldap.modlist import modifyModlist as modlist
 import re
 
 class GPConnection:
@@ -33,7 +34,7 @@ class GPConnection:
         return p.wait() == 0
 
     def realm_to_dn(self, realm):
-        return ','.join(['dc=%s' % part for part in realm.split('.')])
+        return ','.join(['DC=%s' % part for part in realm.lower().split('.')])
 
     def __well_known_container(self, container):
         if container == 'system':
@@ -81,7 +82,11 @@ class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
         path_parts = [n for n in gpo_path.split('\\') if n]
+        self.path_start = '\\\\' + '\\'.join(path_parts[:2])
         self.path = '\\'.join(path_parts[2:])
+        self.name = path_parts[-1]
+        self.realm_dn = self.realm_to_dn(self.realm)
+        self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
         try:
             self.conn = smb.SMB(path_parts[0], path_parts[1], lp=self.lp, creds=self.creds)
         except:
@@ -137,30 +142,90 @@ class GPOConnection(GPConnection):
         ini_conf.set('General', 'Version', current)
         self.write('GPT.INI', ini_conf)
 
-        name = self.path.split('\\')[2]
-        realm_dn = self.realm_to_dn(self.realm)
-        gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
-        self.set_attr(gpo_dn, 'versionNumber', current)
+        self.set_attr(self.gpo_dn, 'versionNumber', current)
 
     def parse(self, filename):
-        ext = os.path.splitext(filename)[-1].lower()
-        if ext == '.inf' or ext == '.ini':
-            return self.__parse_inf(filename)
-        elif ext == '.xml':
-            return self.__parse_xml(filename)
-        return ''
+        if len(re.findall('CN=[A-Za-z ]+,', filename)) > 0:
+            return self.__parse_dn(filename)
+        else:
+            ext = os.path.splitext(filename)[-1].lower()
+            if ext == '.inf' or ext == '.ini':
+                return self.__parse_inf(filename)
+            elif ext == '.xml':
+                return self.__parse_xml(filename)
+            return ''
 
     def write(self, filename, config):
-        ext = os.path.splitext(filename)[-1].lower()
-        if ext == '.inf' or ext == '.ini':
-            self.__write_inf(filename, config)
-        elif ext == '.xml':
-            self.__write_xml(filename, config)
+        if len(re.findall('CN=[A-Za-z ]+,', filename)) > 0:
+            self.__write_dn(filename, config)
+        else:
+            ext = os.path.splitext(filename)[-1].lower()
+            if ext == '.inf' or ext == '.ini':
+                self.__write_inf(filename, config)
+            elif ext == '.xml':
+                self.__write_xml(filename, config)
 
-        if '\\machine' in filename.lower():
-            self.__increment_gpt_ini(computer=True)
-        elif '\\user' in filename.lower():
-            self.__increment_gpt_ini(user=True)
+            if '\\machine' in filename.lower():
+                self.__increment_gpt_ini(computer=True)
+            elif '\\user' in filename.lower():
+                self.__increment_gpt_ini(user=True)
+
+    def __parse_dn(self, dn):
+        dn = dn % self.gpo_dn
+        try:
+            resp = self.l.search_s(dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
+            keys = ['objectClass', 'msiFileList', 'msiScriptPath', 'displayName', 'versionNumberHi', 'versionNumberLo']
+            results = {a[-1]['name'][-1]: {k: a[-1][k] for k in a[-1].keys() if k in keys} for a in resp}
+        except Exception as e:
+            if 'No such object' in str(e):
+                results = {}
+            else:
+                raise
+        return results
+
+    def __mkdn_p(self, dn):
+        attrs = { 'objectClass' : ['top', 'container'] }
+        try:
+            self.l.add_s(dn, addlist(attrs))
+        except Exception as e:
+            if e.args[-1]['desc'] == 'No such object':
+                self.__mkdn_p(','.join(dn.split(',')[1:]))
+            elif e.args[-1]['desc'] == 'Already exists':
+                return
+            else:
+                sys.stderr.write(e.args[-1]['info'])
+        try:
+            self.l.add_s(dn, addlist(attrs))
+        except Exception as e:
+            if e.args[-1]['desc'] != 'Already exists':
+                sys.stderr.write(e.args[-1]['info'])
+
+    def __write_dn(self, dn, ldap_config):
+        for cn in ldap_config.keys():
+            obj_dn = 'CN=%s,%s' % (cn, dn % self.gpo_dn)
+            if 'objectClass' not in ldap_config[cn]:
+                ldap_config[cn]['objectClass'] = ['top', 'packageRegistration']
+            if 'msiFileList' not in ldap_config[cn]:
+                ldap_config[cn]['msiFileList'] = os.path.splitext(ldap_config[cn]['msiScriptPath'][-1])[0] + '.zap'
+            self.__mkdn_p(','.join(obj_dn.split(',')[1:]))
+            try:
+                self.l.add_s(obj_dn, addlist(ldap_config[cn]))
+            except Exception as e:
+                if e.args[-1]['desc'] == 'Already exists':
+                    try:
+                        self.l.modify_s(obj_dn, modlist({}, ldap_config[cn]))
+                    except Exception as e:
+                        sys.stderr.write(e.args[-1]['info'])
+                else:
+                    sys.stderr.write(e.args[-1]['info'])
+
+            if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == '.zap':
+                inf_conf = self.__parse_inf(ldap_config[cn]['msiFileList'][-1])
+                if not inf_conf.has_section('Application'):
+                    inf_conf.add_section('Application')
+                inf_conf.set('Application', 'FriendlyName', ldap_config[cn]['displayName'][-1])
+                inf_conf.set('Application', 'SetupCommand', 'rpm -i "%s"' % ldap_config[cn]['msiScriptPath'][-1])
+                self.__write_inf(ldap_config[cn]['msiFileList'][-1], inf_conf)
 
     def __parse_inf(self, filename):
         inf_conf = ConfigParser()
@@ -240,4 +305,5 @@ class GPOConnection(GPConnection):
                     sys.stderr.write('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
                 else:
                     sys.stderr.write(e[1])
+            return filename
 

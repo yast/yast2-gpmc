@@ -2,6 +2,7 @@
 import xml.etree.ElementTree as etree
 import uuid
 import os.path
+from subprocess import Popen, PIPE
 
 import ycp
 ycp.import_module('UI')
@@ -9,7 +10,18 @@ from ycp import *
 def select_script(title, script_type, conn):
     full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)
     conn.upload_file(full_path, 'MACHINE\\Scripts\\%s' % script_type)
-    return os.path.basename(full_path)
+    return ({}, os.path.basename(full_path))
+
+def query_rpm(filename):
+    out,_ = Popen(['rpm', '-qip', filename], stdout=PIPE, stderr=PIPE).communicate()
+    return {line.split(':')[0].strip() : ':'.join(line.split(':')[1:]).strip() for line in out.strip().split('\n')}
+
+def select_exec(title, policy, conn):
+    full_path = UI.AskForExistingFile('/', '*.rpm', title)
+    rpm_data = query_rpm(full_path)
+    others = {'Name' : rpm_data['Name'], 'Version': rpm_data['Release']}
+    path = '%s\\%s' % (conn.path_start, conn.upload_file(full_path, 'MACHINE\\Applications'))
+    return (others, path)
 
 def fetch_inf_value(inf_conf, section, key):
     return inf_conf.get(section, key).encode('ascii') if inf_conf.has_section(section) and inf_conf.has_option(section, key) else None
@@ -49,6 +61,18 @@ def script_get_next_option(inf_conf, section):
         return '%dCmdLine' % (high_digit+1)
     else:
         return '0CmdLine'
+
+def software_install_set_option(ldap_conf, section, option, v):
+    ldap_conf[section][option] = [v]
+
+def software_install_set_version(ldap_conf, section, v):
+    software_install_set_option(ldap_conf, section, 'versionNumberHi', v.split('.')[0])
+    software_install_set_option(ldap_conf, section, 'versionNumberLo', '.'.join(v.split('.')[1:]))
+
+def software_install_new_option(ldap_conf):
+    siuuid = str(uuid.uuid4()).upper()
+    ldap_conf[siuuid] = {}
+    return siuuid
 
 def script_set_option(inf_conf, section, option, v):
     if not inf_conf.has_section(section):
@@ -433,6 +457,54 @@ Policies = {
                 'input' : {
                     'type' : 'TextEntry',
                     'options' : None,
+                },
+            },
+        } ),
+    },
+    'Software installation': {
+        'file' : 'CN=Packages,CN=Class Store,CN=Machine,%s',
+        'opts' : (lambda ldap_conf : {
+            option : {
+                'values' : Policies['Software installation']['values'](ldap_conf, option)
+            } for option in ldap_conf.keys()
+        } ),
+        'gpe_extension' : None,
+        'new' : None,
+        'add' : (lambda ldap_conf : Policies['Software installation']['values'](ldap_conf, software_install_new_option(ldap_conf))),
+        'header' : (lambda : [k['title'] for k in sorted(Policies['Software installation']['values'](None, None).values(), key=(lambda x : x['order']))]),
+        'values' : (lambda ldap_conf, option : {
+            'Name' : {
+                'order' : 0,
+                'title' : 'Name',
+                'get' : ldap_conf[option]['displayName'][-1] if ldap_conf and 'displayName' in ldap_conf[option].keys() else '',
+                'set' : (lambda v : software_install_set_option(ldap_conf, option, 'displayName', v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+            'Version' : {
+                'order' : 1,
+                'title' : 'Version',
+                'get' : '%s.%s' % (ldap_conf[option]['versionNumberHi'][-1], ldap_conf[option]['versionNumberLo'][-1]) if ldap_conf and 'versionNumberHi' in ldap_conf[option].keys() and 'versionNumberLo' in ldap_conf[option].keys() else '',
+                'set' : (lambda v : software_install_set_version(ldap_conf, option, v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+            'Source' : {
+                'order' : 2,
+                'title' : 'Source',
+                'get' : ldap_conf[option]['msiScriptPath'][-1] if ldap_conf and 'msiScriptPath' in ldap_conf[option].keys() else '',
+                'set' : (lambda v : software_install_set_option(ldap_conf, option, 'msiScriptPath', v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'ButtonEntry',
+                    'options' : None,
+                    'action' : select_exec,
                 },
             },
         } ),
