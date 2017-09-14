@@ -96,7 +96,7 @@ class GPME:
                     combo_options.append(Term('item', sk, current == sk))
                 items.append(Left(ComboBox(Term('id', 'entry_%s' % k), values[k]['title'], combo_options)))
             elif values[k]['input']['type'] == 'Label':
-                items.append(Left(Label('%s: %s' % (values[k]['title'], values[k]['get']))))
+                items.append(Left(Label('%s: %s' % (values[k]['title'], values[k]['valstr'](values[k]['get'])))))
             elif values[k]['input']['type'] == 'ButtonEntry':
                 items.append(Left(
                     VBox(
