@@ -14,7 +14,7 @@ ycp.import_module('Label')
 
 import Gpmc
 from defaults import Policies, fetch_inf_value
-from complex import GPQuery, GPOConnection, CreateGPO
+from complex import GPConnection, GPOConnection
 import re
 
 class GPME:
@@ -226,7 +226,7 @@ class GPMC:
         self.lp = lp
         self.creds = creds
         try:
-            self.q = GPQuery(lp, creds)
+            self.q = GPConnection(lp, creds)
             self.gpos = self.q.gpo_list()
         except:
             self.gpos = []
@@ -292,7 +292,7 @@ class GPMC:
                     sret = UI.UserInput()
                     if str(sret) == 'ok_name_gpo':
                         gpo_name = UI.QueryWidget(Term('id', 'gpo_name_entry'), Symbol('Value'))
-                        CreateGPO(gpo_name, self.q.l, self.lp, self.creds)
+                        self.q.create_gpo(gpo_name)
                     UI.CloseDialog()
                     try:
                         self.gpos = self.q.gpo_list()

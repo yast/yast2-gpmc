@@ -13,14 +13,77 @@ import uuid
 from ldap.modlist import addModlist as addlist
 import re
 
-class GPOConnection:
-    def __init__(self, lp, creds, gpo_path):
+class GPConnection:
+    def __init__(self, lp, creds):
         self.lp = lp
         self.creds = creds
+        self.realm = lp.get('realm')
+        net = Net(creds=creds, lp=lp)
+        cldap_ret = net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
+        self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
+        if self.__kinit_for_gssapi():
+            auth_tokens = ldap.sasl.gssapi('')
+            self.l.sasl_interactive_bind_s('', auth_tokens)
+        else:
+            self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
+
+    def __kinit_for_gssapi(self):
+        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
+        p.stdin.write('%s\n' % self.creds.get_password())
+        return p.wait() == 0
+
+    def realm_to_dn(self, realm):
+        return ','.join(['dc=%s' % part for part in realm.split('.')])
+
+    def __well_known_container(self, container):
+        if container == 'system':
+            wkguiduc = 'AB1D30F3768811D1ADED00C04FD8D5CD'
+        elif container == 'computers':
+            wkguiduc = 'AA312825768811D1ADED00C04FD8D5CD'
+        elif container == 'dcs':
+            wkguiduc = 'A361B2FFFFD211D1AA4B00C04FD7D83A'
+        elif container == 'users':
+            wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
+        result = self.l.search_s('<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', ['distinguishedName'])
+        if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
+            return result[0][1]['distinguishedName'][-1]
+
+    def gpo_list(self):
+        return self.l.search_s(self.__well_known_container('system'), ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
+
+    def set_attr(self, dn, key, value):
+        self.l.modify(dn, [(1, key, None), (0, key, value)])
+
+    def create_gpo(self, displayName):
+        gpouuid = uuid.uuid4()
+        realm_dn = self.realm_to_dn(self.realm)
+        name = '{%s}' % str(gpouuid).upper()
+        dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
+        ldap_mod = { 'displayName': [displayName], 'gPCFileSysPath': ['\\\\%s\\SysVol\\%s\\Policies\\%s' % (self.realm, self.realm, name)], 'objectClass': ['top', 'container', 'groupPolicyContainer'], 'gPCFunctionalityVersion': ['2'], 'flags': ['0'], 'versionNumber': ['0'] }
+        # gPCMachineExtensionNames MUST be assigned as gpos are modified (currently not doing this!)
+
+        machine_dn = 'CN=Machine,%s' % dn
+        user_dn = 'CN=User,%s' % dn
+        sub_ldap_mod = { 'objectClass': ['top', 'container'] }
+
+        gpo = GPOConnection(self.lp, self.creds, ldap_mod['gPCFileSysPath'][-1])
+        try:
+            self.l.add_s(dn, addlist(ldap_mod))
+            self.l.add_s(machine_dn, addlist(sub_ldap_mod))
+            self.l.add_s(user_dn, addlist(sub_ldap_mod))
+
+            gpo.initialize_empty_gpo()
+            # TODO: GPO links
+        except Exception as e:
+            print str(e)
+
+class GPOConnection(GPConnection):
+    def __init__(self, lp, creds, gpo_path):
+        GPConnection.__init__(self, lp, creds)
         path_parts = [n for n in gpo_path.split('\\') if n]
         self.path = '\\'.join(path_parts[2:])
         try:
-            self.conn = smb.SMB(path_parts[0], path_parts[1], lp=lp, creds=creds)
+            self.conn = smb.SMB(path_parts[0], path_parts[1], lp=self.lp, creds=self.creds)
         except:
             self.conn = None
 
@@ -74,11 +137,10 @@ class GPOConnection:
         ini_conf.set('General', 'Version', current)
         self.write('GPT.INI', ini_conf)
 
-        ldap = GPQuery(self.lp, self.creds)
         name = self.path.split('\\')[2]
-        realm_dn = self.lp.get('realm')
+        realm_dn = self.realm_to_dn(self.realm)
         gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
-        ldap.set_attr(gpo_dn, 'versionNumber', current)
+        self.set_attr(gpo_dn, 'versionNumber', current)
 
     def parse(self, filename):
         ext = os.path.splitext(filename)[-1].lower()
@@ -178,77 +240,4 @@ class GPOConnection:
                     sys.stderr.write('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
                 else:
                     sys.stderr.write(e[1])
-
-class GPQuery:
-    def __init__(self, lp, creds):
-        self.realm = lp.get('realm')
-        net = Net(creds=creds, lp=lp)
-        cldap_ret = net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
-        self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
-        if self.__kinit_for_gssapi(creds):
-            auth_tokens = ldap.sasl.gssapi('')
-            self.l.sasl_interactive_bind_s('', auth_tokens)
-        else:
-            self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
-
-    def __kinit_for_gssapi(self, creds):
-        p = Popen(['kinit', '%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username()], stdin=PIPE, stdout=PIPE)
-        p.stdin.write('%s\n' % creds.get_password())
-        return p.wait() == 0
-
-    def __realm_to_dn(self, realm):
-        return ','.join(['dc=%s' % part for part in realm.split('.')])
-
-    def well_known_container(self, container):
-        if container == 'system':
-            wkguiduc = 'AB1D30F3768811D1ADED00C04FD8D5CD'
-        elif container == 'computers':
-            wkguiduc = 'AA312825768811D1ADED00C04FD8D5CD'
-        elif container == 'dcs':
-            wkguiduc = 'A361B2FFFFD211D1AA4B00C04FD7D83A'
-        elif container == 'users':
-            wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
-        result = self.l.search_s('<WKGUID=%s,%s>' % (wkguiduc, self.__realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', ['distinguishedName'])
-        if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
-            return result[0][1]['distinguishedName'][-1]
-
-    def gpo_list(self):
-        return self.l.search_s(self.well_known_container('system'), ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
-
-    def set_attr(self, dn, key, value):
-        self.l.modify(dn, [(1, key, None), (0, key, value)])
-
-def realm_to_dn(realm):
-    return ','.join(['dc=%s' % part for part in realm.split('.')])
-
-class CreateGPO:
-    def __init__(self, displayName, ldap, lp, creds):
-        self.uuid = uuid.uuid4()
-        self.realm = lp.get('realm')
-        self.l = ldap
-        self.lp = lp
-        self.creds = creds
-        self.__propogate(displayName)
-
-    def __propogate(self, displayName):
-        realm_dn = realm_to_dn(self.realm)
-        name = '{%s}' % str(self.uuid).upper()
-        dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
-        ldap_mod = { 'displayName': [displayName], 'gPCFileSysPath': ['\\\\%s\\SysVol\\%s\\Policies\\%s' % (self.realm, self.realm, name)], 'objectClass': ['top', 'container', 'groupPolicyContainer'], 'gPCFunctionalityVersion': ['2'], 'flags': ['0'], 'versionNumber': ['0'] }
-        # gPCMachineExtensionNames MUST be assigned as gpos are modified (currently not doing this!)
-
-        machine_dn = 'CN=Machine,%s' % dn
-        user_dn = 'CN=User,%s' % dn
-        sub_ldap_mod = { 'objectClass': ['top', 'container'] }
-
-        smb = GPOConnection(self.lp, self.creds, ldap_mod['gPCFileSysPath'][-1])
-        try:
-            self.l.add_s(dn, addlist(ldap_mod))
-            self.l.add_s(machine_dn, addlist(sub_ldap_mod))
-            self.l.add_s(user_dn, addlist(sub_ldap_mod))
-
-            smb.initialize_empty_gpo()
-            # TODO: GPO links
-        except Exception as e:
-            print str(e)
 
