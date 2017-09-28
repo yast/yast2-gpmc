@@ -20,7 +20,6 @@ desktop_DATA =			\
 	gpmc.desktop
 
 moduledir = ${prefix}/share/YaST2/modules
-module_DATA = Gpmc.py
 
 # create a symlink for local build, #145327
 gpmc:

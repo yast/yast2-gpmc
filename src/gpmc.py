@@ -4,10 +4,7 @@ import optparse
 from samba import getopt as options
 from samba.auth import system_session
 
-from ycp import *
-import gettext
-from gettext import textdomain
-textdomain('gpmc')
+from ycp import init_ui
 
 import sys
 from subprocess import Popen, PIPE
@@ -51,6 +48,10 @@ if __name__ == "__main__":
     else:
         init_ui('qt')
 
-    import wizards
-    wizards.GPMCSequence(lp, creds)
+    from dialogs import GPMC, GPME
+    from yui import UISequencer
+    s = UISequencer(lp, creds)
+    funcs = [(lambda lp, creds: GPMC(lp, creds).Show()),
+             (lambda gpo, lp, creds: GPME(gpo, lp, creds).Show())]
+    s.run(funcs)
 
