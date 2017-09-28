@@ -1,0 +1,2 @@
+yast crashes on exit, appears to be in a destructor somewhere
+yast doesn't recognize python modules, so doesn't add them to the menu
