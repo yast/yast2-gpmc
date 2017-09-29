@@ -69,27 +69,28 @@ class GPME:
 
     def __change_values_prompt(self, values):
         items = []
-        for k in values.keys():
-            if not values[k]['input']:
+        for value in sorted(values.iteritems(), cmp=(lambda a,b : a[-1]['order']-b[-1]['order'])):
+            k = value[0]
+            if not value[-1]['input']:
                 continue
-            if values[k]['input']['type'] == 'TextEntry':
+            if value[-1]['input']['type'] == 'TextEntry':
                 items.append(Left(
-                    ReplacePoint(TextEntry(values[k]['title'], values[k]['get'] if values[k]['get'] else '', ID='entry_%s' % k), ID='text_entry_%s' % k),
+                    ReplacePoint(TextEntry(value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '', ID='entry_%s' % k), ID='text_entry_%s' % k),
                 ))
-            elif values[k]['input']['type'] == 'ComboBox':
+            elif value[-1]['input']['type'] == 'ComboBox':
                 combo_options = []
-                current = values[k]['valstr'](values[k]['get'])
-                for sk in values[k]['input']['options'].keys():
+                current = value[-1]['valstr'](value[-1]['get'])
+                for sk in value[-1]['input']['options'].keys():
                     combo_options.append((sk, current == sk))
-                items.append(Left(ComboBox(values[k]['title'], combo_options, ID='entry_%s' % k)))
-            elif values[k]['input']['type'] == 'Label':
+                items.append(Left(ComboBox(value[-1]['title'], combo_options, ID='entry_%s' % k)))
+            elif value[-1]['input']['type'] == 'Label':
                 items.append(Left(
-                    ReplacePoint(self.__label_display(k, values, values[k]['get'] if values[k]['get'] else ''), ID='label_%s' % k),
+                    ReplacePoint(self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else ''), ID='label_%s' % k),
                 ))
-            elif values[k]['input']['type'] == 'ButtonEntry':
+            elif value[-1]['input']['type'] == 'ButtonEntry':
                 items.append(Left(
                     VBox(
-                        ReplacePoint(self.__button_entry(k, values, values[k]['get'] if values[k]['get'] else ''), ID='button_entry_%s' % k),
+                        ReplacePoint(self.__button_entry(k, values, value[-1]['get'] if value[-1]['get'] else ''), ID='button_entry_%s' % k),
                         PushButton('Select', ID='select_entry_%s' % k),
                     )
                 ))
