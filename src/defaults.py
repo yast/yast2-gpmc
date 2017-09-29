@@ -761,6 +761,75 @@ Policies = {
         'add' : None,
         'header' : (lambda : ['Name', 'Description']),
     },
+    'user_internet_maint_urls' : {
+        'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
+        'opts' : (lambda ins_conf : {
+            'Important URLs' : {
+                'values' : {
+                    'Name' : {
+                        'order' : 0,
+                        'title' : 'Name',
+                        'get' : 'Important URLs',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'Description' : {
+                        'order' : 1,
+                        'title' : 'Description',
+                        'get' : 'Settings for home, search, online support URLs',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'Label',
+                            'options' : None,
+                        },
+                    },
+                    'Home_Page' : {
+                        'order' : 2,
+                        'title' : 'Home page URL:',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'Home_Page'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'Home_Page', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Search_Page' : {
+                        'order' : 3,
+                        'title' : 'Search bar URL:',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'Search_Page'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'Search_Page', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Help_Page' : {
+                        'order' : 4,
+                        'title' : 'Online support page URL',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'Help_Page'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'Help_Page', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                },
+            },
+        }),
+        'gpe_extension' : None,
+        'new' : None,
+        'add' : None,
+        'header' : (lambda : ['Name', 'Description']),
+
+    },
 }
 
 if __name__ == "__main__":
