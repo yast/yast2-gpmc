@@ -149,7 +149,7 @@ class GPOConnection(GPConnection):
             return self.__parse_dn(filename)
         else:
             ext = os.path.splitext(filename)[-1].lower()
-            if ext == '.inf' or ext == '.ini':
+            if ext in ['.inf', '.ini', '.ins']:
                 return self.__parse_inf(filename)
             elif ext == '.xml':
                 return self.__parse_xml(filename)
@@ -160,7 +160,7 @@ class GPOConnection(GPConnection):
             self.__write_dn(filename, config)
         else:
             ext = os.path.splitext(filename)[-1].lower()
-            if ext == '.inf' or ext == '.ini':
+            if ext in ['.inf', '.ini', '.ins']:
                 self.__write_inf(filename, config)
             elif ext == '.xml':
                 self.__write_xml(filename, config)

@@ -41,6 +41,17 @@ def set_inf_value(inf_conf, section, key, value):
     elif inf_conf.has_section(section) and inf_conf.has_option(section, key):
         inf_conf.remove_option(section, key)
 
+def set_ins_value(ins_conf, section, key, value):
+    if value:
+        if not ins_conf.has_section(section):
+            ins_conf.add_section(section)
+        ins_conf.set(section, key, value)
+    elif ins_conf.has_section(section) and ins_conf.has_option(section, key):
+        ins_conf.remove_option(section, key)
+
+def fetch_ins_value(ins_conf, section, key):
+    return ins_conf.get(section, key).encode('ascii') if ins_conf.has_section(section) and ins_conf.has_option(section, key) else ''
+
 def iter_scripts_conf(inf_conf, section):
     if inf_conf.has_section(section):
         for option in inf_conf.options(section):
@@ -508,6 +519,247 @@ Policies = {
                 },
             },
         } ),
+    },
+    'user_internet_maint_conn' : {
+        'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
+        'opts' : (lambda ins_conf : {
+            'Proxy Settings' : {
+                'values' : {
+                    'Name' : {
+                        'order' : 0,
+                        'title' : 'Name',
+                        'get' : 'Proxy Settings',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'Description' : {
+                        'order' : 1,
+                        'title' : 'Description',
+                        'get' : 'Settings for proxy',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'Label',
+                            'options' : None,
+                        },
+                    },
+                    'Proxy_Enable' : {
+                        'order' : 2,
+                        'title' : 'Enable proxy settings',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Proxy_Enable'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Proxy_Enable', v)),
+                        'valstr' : (lambda v : 'Disabled' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                        'input' : {
+                            'type' : 'ComboBox',
+                            'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                        },
+                    },
+                    'HTTP_Proxy_Server' : {
+                        'order' : 3,
+                        'title' : 'Address of HTTP proxy',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'HTTP_Proxy_Server'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'HTTP_Proxy_Server', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Secure_Proxy_Server' : {
+                        'order' : 4,
+                        'title' : 'Address of Secure proxy',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Secure_Proxy_Server'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Secure_Proxy_Server', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'FTP_Proxy_Server' : {
+                        'order' : 5,
+                        'title' : 'Address of FTP proxy',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'FTP_Proxy_Server'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'FTP_Proxy_Server', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Gopher_Proxy_Server' : {
+                        'order' : 6,
+                        'title' : 'Address of Gopher proxy',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Gopher_Proxy_Server'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Gopher_Proxy_Server', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Socks_Proxy_Server' : {
+                        'order' : 7,
+                        'title' : 'Address of Socks proxy',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Socks_Proxy_Server'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Socks_Proxy_Server', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'Use_Same_Proxy' : {
+                        'order' : 8,
+                        'title' : 'Use the same proxy server for all addresses',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Use_Same_Proxy'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Use_Same_Proxy', v)),
+                        'valstr' : (lambda v : 'Disabled' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                        'input' : {
+                            'type' : 'ComboBox',
+                            'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                        },
+                    },
+                    'Proxy_Override' : {
+                        'order' : 9,
+                        'title' : 'Do not use proxy server for addresses beginning with:',
+                        'get' : fetch_ins_value(ins_conf, 'Proxy', 'Proxy_Override'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Proxy', 'Proxy_Override', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                },
+            },
+            'User Agent String' : {
+                'values' : {
+                    'Name' : {
+                        'order' : 0,
+                        'title' : 'Name',
+                        'get' : 'User Agent String',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'Description' : {
+                        'order' : 1,
+                        'title' : 'Description',
+                        'get' : 'Settings for user agent string',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'User Agent' : {
+                        'order' : 2,
+                        'title' : 'Custom string to be appended to user agent string:',
+                        'get' : fetch_ins_value(ins_conf, 'Branding', 'User Agent'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'Branding', 'User Agent', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                },
+            },
+            'Automatic Browser Configuration' : {
+                'values' : {
+                    'Name' : {
+                        'order' : 0,
+                        'title' : 'Name',
+                        'get' : 'Automatic Browser Configuration',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'Description' : {
+                        'order' : 1,
+                        'title' : 'Description',
+                        'get' : 'Settings for automatic browser configuration',
+                        'set' : None,
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : None,
+                            'options' : None,
+                        },
+                    },
+                    'AutoDetect' : {
+                        'order' : 2,
+                        'title' : 'Automatically detect configuration settings',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'AutoDetect'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'AutoDetect', v)),
+                        'valstr' : (lambda v : 'Disabled' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                        'input' : {
+                            'type' : 'ComboBox',
+                            'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                        },
+                    },
+                    'AutoConfig' : {
+                        'order' : 3,
+                        'title' : 'Enable Automatic Configuration',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'AutoConfig'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'AutoConfig', v)),
+                        'valstr' : (lambda v : 'Disabled' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
+                        'input' : {
+                            'type' : 'ComboBox',
+                            'options' : {'Enabled' : '1', 'Disabled' : '0'},
+                        },
+                    },
+                    'AutoConfigTime' : {
+                        'order' : 4,
+                        'title' : 'Automatically configure interval in minutes',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'AutoConfigTime'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'AutoConfigTime', v)),
+                        'valstr' : (lambda v : '%s minutes' % v if v else ''),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'AutoConfigURL' : {
+                        'order' : 5,
+                        'title' : 'Auto-config URL (.INS file):',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'AutoConfigURL'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'AutoConfigURL', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                    'AutoConfigJSURL' : {
+                        'order' : 6,
+                        'title' : 'Auto-proxy URL (.JS, .JVS, or .PAC file):',
+                        'get' : fetch_ins_value(ins_conf, 'URL', 'AutoConfigJSURL'),
+                        'set' : (lambda v : set_ins_value(ins_conf, 'URL', 'AutoConfigJSURL', v)),
+                        'valstr' : (lambda v : v),
+                        'input' : {
+                            'type' : 'TextEntry',
+                            'options' : None,
+                        },
+                    },
+                },
+            },
+        }),
+        'gpe_extension' : None,
+        'new' : None,
+        'add' : None,
+        'header' : (lambda : ['Name', 'Description']),
     },
 }
 

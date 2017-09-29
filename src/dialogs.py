@@ -185,10 +185,29 @@ class GPME:
             ),
         ]
 
+        user_config = [
+            Node('Policies', False,
+                [
+                    Node('OS Settings', False,
+                        [
+                            Node('Internet Browser Maintenance', False,
+                                [
+                                    Node('Connection', False, [], ID='user_internet_maint_conn'),
+                                ]
+                            ),
+                        ]
+                    ),
+                ]
+            ),
+        ]
+
         contents = Tree(self.selected_gpo[1]['displayName'][-1],
             [
                 Node('Computer Configuration', True,
                     computer_config
+                ),
+                Node('User Configuration', True,
+                    user_config
                 ),
             ],
         ID='gpme_tree', opts=['notify'])
