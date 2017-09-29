@@ -147,24 +147,24 @@ class GPME:
                 [
                     Node('Software Settings', False,
                         [
-                            Node('Software installation', False, []),
+                            Node('Software installation', False, [], ID='comp_software_install'),
                         ]
                     ),
-                    Node('Windows Settings', False,
+                    Node('OS Settings', False,
                         [
                             Node('Scripts', False,
                                 [
-                                    Node('Startup', False, []),
-                                    Node('Shutdown', False, []),
+                                    Node('Startup', False, [], ID='comp_scripts_startup'),
+                                    Node('Shutdown', False, [], ID='comp_scripts_shutdown'),
                                 ]
                             ),
                             Node('Security Settings', False,
                                 [
                                     Node('Account Policy', False,
                                         [
-                                            Node('Password Policy', False, []),
-                                            Node('Account Lockout Policy', False, []),
-                                            Node('Kerberos Policy', False, []),
+                                            Node('Password Policy', False, [], ID='comp_passwd'),
+                                            Node('Account Lockout Policy', False, [], ID='comp_lockout'),
+                                            Node('Kerberos Policy', False, [], ID='comp_krb'),
                                         ]
                                     ),
                                 ]
@@ -175,9 +175,9 @@ class GPME:
             ),
             Node('Preferences', False,
                 [
-                    Node('Windows Settings', False,
+                    Node('OS Settings', False,
                         [
-                            Node('Environment', False, []),
+                            Node('Environment', False, [], ID='comp_env_var'),
                         ]
                     ),
                 ]

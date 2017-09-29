@@ -99,11 +99,11 @@ def env_add(xml_conf):
     return top
 
 Policies = {
-    'Password Policy' : {
+    'comp_passwd' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'MinimumPasswordAge' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'MinimumPasswordAge', 'Minimum password age',
                     (lambda v : '%s days' % v if v else 'Not Defined'),
                     {
@@ -113,7 +113,7 @@ Policies = {
                 ),
             },
             'MaximumPasswordAge' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'MaximumPasswordAge', 'Maximum password age',
                     (lambda v : '%s days' % v if v else 'Not Defined'),
                     {
@@ -123,7 +123,7 @@ Policies = {
                 ),
             },
             'MinimumPasswordLength' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'MinimumPasswordLength', 'Minimum password length',
                     (lambda v : '%s characters' % v if v else 'Not Defined'),
                     {
@@ -133,7 +133,7 @@ Policies = {
                 ),
             },
             'PasswordComplexity' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'PasswordComplexity', 'Password must meet complexity requirements',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
@@ -143,7 +143,7 @@ Policies = {
                 ),
             },
             'PasswordHistorySize' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'PasswordHistorySize', 'Enforce password history',
                     (lambda v : '%s passwords remembered' % v if v else 'Not Defined'),
                     {
@@ -153,7 +153,7 @@ Policies = {
                 ),
             },
             'ClearTextPassword' : {
-                'values' : Policies['Password Policy']['values'](
+                'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'ClearTextPassword', 'Store passwords using reversible encryption',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
@@ -189,11 +189,11 @@ Policies = {
             },
         } ),
     },
-    'Account Lockout Policy' : {
+    'comp_lockout' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'LockoutDuration' : {
-                'values' : Policies['Account Lockout Policy']['values'](
+                'values' : Policies['comp_lockout']['values'](
                     inf_conf, 'LockoutDuration', 'Account lockout duration',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
@@ -203,7 +203,7 @@ Policies = {
                 ),
             },
             'LockoutBadCount' : {
-                'values' : Policies['Account Lockout Policy']['values'](
+                'values' : Policies['comp_lockout']['values'](
                     inf_conf, 'LockoutBadCount', 'Account lockout threshold',
                     (lambda v : '%s invalid logon attempts' % v if v else 'Not Defined'),
                     {
@@ -213,7 +213,7 @@ Policies = {
                 ),
             },
             'ResetLockoutCount' : {
-                'values' : Policies['Account Lockout Policy']['values'](
+                'values' : Policies['comp_lockout']['values'](
                     inf_conf, 'ResetLockoutCount', 'Reset account lockout counter after',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
@@ -249,11 +249,11 @@ Policies = {
             },
         } ),
     },
-    'Kerberos Policy' : {
+    'comp_krb' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
         'opts' : (lambda inf_conf : {
             'MaxTicketAge' : {
-                'values' : Policies['Kerberos Policy']['values'](
+                'values' : Policies['comp_krb']['values'](
                     inf_conf, 'MaxTicketAge', 'Maximum lifetime for user ticket',
                     (lambda v : '%s hours' % v if v else 'Not Defined'),
                     {
@@ -263,7 +263,7 @@ Policies = {
                 ),
             },
             'MaxRenewAge' : {
-                'values' : Policies['Kerberos Policy']['values'](
+                'values' : Policies['comp_krb']['values'](
                     inf_conf, 'MaxRenewAge', 'Maximum lifetime for user ticket renewal',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
@@ -273,7 +273,7 @@ Policies = {
                 ),
             },
             'MaxServiceAge' : {
-                'values' : Policies['Kerberos Policy']['values'](
+                'values' : Policies['comp_krb']['values'](
                     inf_conf, 'MaxServiceAge', 'Maximum lifetime for service ticket',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
@@ -283,7 +283,7 @@ Policies = {
                 ),
             },
             'MaxClockSkew' : {
-                'values' : Policies['Kerberos Policy']['values'](
+                'values' : Policies['comp_krb']['values'](
                     inf_conf, 'MaxClockSkew', 'Maximum tolerance for computer clock synchronization',
                     (lambda v : '%s minutes' % v if v else 'Not Defined'),
                     {
@@ -293,7 +293,7 @@ Policies = {
                 ),
             },
             'TicketValidateClient' : {
-                'values' : Policies['Kerberos Policy']['values'](
+                'values' : Policies['comp_krb']['values'](
                     inf_conf, 'TicketValidateClient', 'Enforce user logon restrictions',
                     (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled'),
                     {
@@ -329,17 +329,17 @@ Policies = {
             },
         } ),
     },
-    'Environment' : {
+    'comp_env_var' : {
         'file': '\\MACHINE\\Preferences\\EnvironmentVariables\\EnvironmentVariables.xml',
         'opts' : (lambda xml_conf : {
             a.attrib['name']: {
-                'values' : Policies['Environment']['values'](a),
+                'values' : Policies['comp_env_var']['values'](a),
             } for a in xml_conf.findall('EnvironmentVariable')
         } ),
         'gpe_extension' : '{0E28E245-9368-4853-AD84-6DA3BA35BB75}{35141B6B-498A-4CC7-AD59-CEF93D89B2CE}',
         'new' : (lambda : new_environment_tree()),
-        'add' : (lambda xml_conf : Policies['Environment']['values'](env_add(xml_conf))),
-        'header' : (lambda : [k['title'] for k in sorted(Policies['Environment']['values'](None).values(), key=(lambda x : x['order']))]),
+        'add' : (lambda xml_conf : Policies['comp_env_var']['values'](env_add(xml_conf))),
+        'header' : (lambda : [k['title'] for k in sorted(Policies['comp_env_var']['values'](None).values(), key=(lambda x : x['order']))]),
         'values' : (lambda a : {
             'name' : {
                 'order' : 0,
@@ -387,17 +387,17 @@ Policies = {
             },
         } ),
     },
-    'Startup': {
+    'comp_scripts_startup': {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
         'opts' : (lambda inf_conf : {
             option : {
-                'values' : Policies['Startup']['values'](inf_conf, option),
+                'values' : Policies['comp_scripts_startup']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Startup')
         } ),
         'gpe_extension' : None,
         'new' : None,
-        'add' : (lambda inf_conf : Policies['Startup']['values'](inf_conf, script_get_next_option(inf_conf, 'Startup'))),
-        'header' : (lambda : [k['title'] for k in sorted(Policies['Startup']['values'](None, None).values(), key=(lambda x : x['order']))]),
+        'add' : (lambda inf_conf : Policies['comp_scripts_startup']['values'](inf_conf, script_get_next_option(inf_conf, 'Startup'))),
+        'header' : (lambda : [k['title'] for k in sorted(Policies['comp_scripts_startup']['values'](None, None).values(), key=(lambda x : x['order']))]),
         'values' : (lambda inf_conf, option : {
             'CmdLine' : {
                 'order' : 0,
@@ -424,17 +424,17 @@ Policies = {
             },
         } ),
     },
-    'Shutdown': {
+    'comp_scripts_shutdown': {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
         'opts' : (lambda inf_conf : {
             option : {
-                'values' : Policies['Shutdown']['values'](inf_conf, option),
+                'values' : Policies['comp_scripts_shutdown']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Shutdown')
         } ),
         'gpe_extension' : None,
         'new' : None,
-        'add' : (lambda inf_conf : Policies['Shutdown']['values'](inf_conf, script_get_next_option(inf_conf, 'Shutdown'))),
-        'header' : (lambda : [k['title'] for k in sorted(Policies['Shutdown']['values'](None, None).values(), key=(lambda x : x['order']))]),
+        'add' : (lambda inf_conf : Policies['comp_scripts_shutdown']['values'](inf_conf, script_get_next_option(inf_conf, 'Shutdown'))),
+        'header' : (lambda : [k['title'] for k in sorted(Policies['comp_scripts_shutdown']['values'](None, None).values(), key=(lambda x : x['order']))]),
         'values' : (lambda inf_conf, option : {
             'CmdLine' : {
                 'order' : 0,
@@ -461,17 +461,17 @@ Policies = {
             },
         } ),
     },
-    'Software installation': {
+    'comp_software_install': {
         'file' : 'CN=Packages,CN=Class Store,CN=Machine,%s',
         'opts' : (lambda ldap_conf : {
             option : {
-                'values' : Policies['Software installation']['values'](ldap_conf, option)
+                'values' : Policies['comp_software_install']['values'](ldap_conf, option)
             } for option in ldap_conf.keys()
         } ),
         'gpe_extension' : None,
         'new' : None,
-        'add' : (lambda ldap_conf : Policies['Software installation']['values'](ldap_conf, software_install_new_option(ldap_conf))),
-        'header' : (lambda : [k['title'] for k in sorted(Policies['Software installation']['values'](None, None).values(), key=(lambda x : x['order']))]),
+        'add' : (lambda ldap_conf : Policies['comp_software_install']['values'](ldap_conf, software_install_new_option(ldap_conf))),
+        'header' : (lambda : [k['title'] for k in sorted(Policies['comp_software_install']['values'](None, None).values(), key=(lambda x : x['order']))]),
         'values' : (lambda ldap_conf, option : {
             'Name' : {
                 'order' : 0,
