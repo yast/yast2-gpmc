@@ -7,8 +7,12 @@ from subprocess import Popen, PIPE
 import ycp
 ycp.import_module('UI')
 from ycp import *
-def select_script(title, script_type, conn):
+def select_script(title, policy, conn):
     full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)
+    if policy == 'comp_scripts_shutdown':
+        script_type = 'Shutdown'
+    elif policy == 'comp_scripts_startup':
+        script_type = 'Startup'
     conn.upload_file(full_path, 'MACHINE\\Scripts\\%s' % script_type)
     return ({}, os.path.basename(full_path))
 
@@ -412,7 +416,7 @@ Policies = {
         'values' : (lambda inf_conf, option : {
             'CmdLine' : {
                 'order' : 0,
-                'title' : 'CmdLine',
+                'title' : 'Command Line',
                 'get' : inf_conf.get('Startup', option).encode('ascii') if inf_conf and inf_conf.has_option('Startup', option) else '',
                 'set' : (lambda v : script_set_option(inf_conf, 'Startup', option, v)),
                 'valstr' : (lambda v : v),
@@ -449,7 +453,7 @@ Policies = {
         'values' : (lambda inf_conf, option : {
             'CmdLine' : {
                 'order' : 0,
-                'title' : 'CmdLine',
+                'title' : 'Command Line',
                 'get' : inf_conf.get('Shutdown', option).encode('ascii') if inf_conf and inf_conf.has_option('Shutdown', option) else '',
                 'set' : (lambda v : script_set_option(inf_conf, 'Shutdown', option, v)),
                 'valstr' : (lambda v : v),
