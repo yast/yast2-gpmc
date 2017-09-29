@@ -193,7 +193,10 @@ class GPME:
                             Node('Internet Browser Maintenance', False,
                                 [
                                     Node('Connection', False, [], ID='user_internet_maint_conn'),
-                                    Node('URLs', False, [], ID='user_internet_maint_urls'),
+                                    Node('URLs', False,
+                                        [
+                                            Node('Favorites and Links', False, [], ID='user_internet_maint_links'),
+                                        ], ID='user_internet_maint_urls'),
                                 ]
                             ),
                         ]

@@ -65,6 +65,15 @@ def iter_scripts_conf(inf_conf, section):
         for option in []:
             yield option
 
+def iter_quick_links_conf(ins_conf):
+    if ins_conf.has_section('URL'):
+        for option in ins_conf.options('URL'):
+            if option.startswith('Quick_Link_') and not option.endswith('_Name'):
+                yield option.encode('ascii')
+
+def quick_link_set_option(ins_conf, section, option, v):
+    pass
+
 def script_get_next_option(inf_conf, section):
     if inf_conf.has_section(section):
         high_digit = -1
@@ -832,8 +841,45 @@ Policies = {
         'new' : None,
         'add' : None,
         'header' : (lambda : ['Name', 'Description']),
-
     },
+    'user_internet_maint_links' : {
+        'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
+        'opts' : (lambda ins_conf : {
+# need to handle these in a sub folder, and not like the others, since you can add multiple url links
+            option : {
+                'values' : Policies['user_internet_maint_links']['values'](ins_conf, option),
+            } for option in iter_quick_links_conf(ins_conf)
+        }),
+        'gpe_extension' : None,
+        'new' : None,
+        'add' : None,
+        'header' : (lambda : ['Name', 'Description']),
+        'values' : (lambda ins_conf, option : {
+            'Quick_Link_Name' : {
+                'order' : 0,
+                'title' : 'Link Name',
+                'get' : ins_conf.get('URL', option+'_Name').encode('ascii') if ins_conf and ins_conf.has_option('URL', option+'_Name') else '',
+                'set': (lambda v : quick_link_set_option(ins_conf, 'URL', option+'_Name', v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+            'Quick_Link' : {
+                'order' : 1,
+                'title' : 'Link URL',
+                'get' : ins_conf.get('URL', option).encode('ascii') if ins_conf and ins_conf.has_option('URL', option) else '',
+                'set': (lambda v : quick_link_set_option(ins_conf, 'URL', option, v)),
+                'valstr' : (lambda v : v),
+                'input' : {
+                    'type' : 'TextEntry',
+                    'options' : None,
+                },
+            },
+        } ),
+
+    }
 }
 
 if __name__ == "__main__":
