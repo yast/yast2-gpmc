@@ -4,14 +4,8 @@ import optparse
 from samba import getopt as options
 from samba.auth import system_session
 
-#from ycp import init_ui
-
 import sys
 from subprocess import Popen, PIPE
-
-def have_x():
-    p = Popen(['xset', '-q'], stdout=PIPE, stderr=PIPE)
-    return p.wait() == 0
 
 if __name__ == "__main__":
     parser = optparse.OptionParser('gpmc [options]')
@@ -42,11 +36,6 @@ if __name__ == "__main__":
     # Initialize the session
     creds = credopts.get_credentials(lp, fallback_machine=True)
     session = system_session()
-
-    #if opts.ncurses or not have_x():
-    #    init_ui('ncurses')
-    #else:
-    #    init_ui('qt')
 
     from dialogs import GPMC, GPME
     from yast import UISequencer
