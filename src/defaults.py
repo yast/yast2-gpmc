@@ -4,9 +4,7 @@ import uuid
 import os.path
 from subprocess import Popen, PIPE
 
-import ycp
-ycp.import_module('UI')
-from ycp import *
+from yast import UI
 def select_script(title, policy, conn):
     full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)
     if policy == 'comp_scripts_shutdown':

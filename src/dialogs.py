@@ -2,7 +2,7 @@
 
 from defaults import Policies, fetch_inf_value
 from complex import GPConnection, GPOConnection
-from yui import *
+from yast import *
 import re
 
 class GPME:
@@ -13,32 +13,34 @@ class GPME:
     def Show(self):
         if not self.conn:
             return Symbol('back')
-        WizardDialog.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Close')
-        WizardDialog.DisableAbortButton()
-        WizardDialog.SetFocus('gpme_tree')
+        Wizard.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Close')
+        Wizard.DisableAbortButton()
+        UI.SetFocus('gpme_tree')
 
         policy = None
-        for ret in WizardDialog.UserInput():
+        while True:
+            ret = UI.UserInput()
             if str(ret) in ['back', 'abort', 'next']:
                 break
             elif str(ret) == 'gpme_tree':
-                policy = WizardDialog.QueryWidget('gpme_tree', 'CurrentItem')
-                WizardDialog.ReplaceWidget('rightPane', self.__display_policy(policy))
+                policy = UI.QueryWidget('gpme_tree', 'CurrentItem')
+                UI.ReplaceWidget('rightPane', self.__display_policy(policy))
                 continue
             if str(ret) == 'policy_table' or str(ret) == 'add_policy':
                 conf = self.conn.parse(Policies[policy]['file'])
                 if conf is None:
                     conf = Policies[policy]['new']()
                 if str(ret) == 'policy_table':
-                    selection = WizardDialog.QueryWidget(str(ret), 'CurrentItem')
+                    selection = UI.QueryWidget(str(ret), 'CurrentItem')
                     values = Policies[policy]['opts'](conf)[selection]['values']
                 elif str(ret) == 'add_policy':
                     values = Policies[policy]['add'](conf)
-                Dialog.OpenDialog(self.__change_setting(values))
-                for subret in Dialog.UserInput():
+                UI.OpenDialog(self.__change_setting(values))
+                while True:
+                    subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         for k in values.keys():
-                            value = Dialog.QueryWidget('entry_%s' % k, 'Value')
+                            value = UI.QueryWidget('entry_%s' % k, 'Value')
                             if values[k]['input']['options']:
                                 value = values[k]['input']['options'][value.strip()]
                             if values[k]['set']:
@@ -49,15 +51,15 @@ class GPME:
                     elif str(subret).startswith('select_entry_'):
                         option = str(subret)[13:]
                         others, selection = values[option]['input']['action'](option, policy, self.conn)
-                        Dialog.ReplaceWidget('button_entry_%s' % option, self.__button_entry(option, values, selection))
+                        UI.ReplaceWidget('button_entry_%s' % option, self.__button_entry(option, values, selection))
                         for k in others.keys():
-                            Dialog.ReplaceWidget('text_entry_%s' % k, self.__button_entry(k, values, others[k]))
+                            UI.ReplaceWidget('text_entry_%s' % k, self.__button_entry(k, values, others[k]))
                         continue
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
-                        Dialog.CloseDialog()
+                        UI.CloseDialog()
                         break
-                WizardDialog.ReplaceWidget('rightPane', self.__display_policy(policy))
-                WizardDialog.SetFocus(str(ret))
+                UI.ReplaceWidget('rightPane', self.__display_policy(policy))
+                UI.SetFocus(str(ret))
 
         return ret
 
@@ -232,15 +234,16 @@ class GPMC:
 
     def __get_creds(self, creds):
         if not creds.get_username() or not creds.get_password():
-            Dialog.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
-            for subret in Dialog.UserInput():
+            UI.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
+            while True:
+                subret = UI.UserInput()
                 if str(subret) == 'creds_ok':
-                    user = Dialog.QueryWidget('username_prompt', 'Value')
-                    password = Dialog.QueryWidget('password_prompt', 'Value')
+                    user = UI.QueryWidget('username_prompt', 'Value')
+                    password = UI.QueryWidget('password_prompt', 'Value')
                     creds.set_username(user)
                     creds.set_password(password)
                 if str(subret) == 'creds_cancel' or str(subret) == 'creds_ok':
-                    Dialog.CloseDialog()
+                    UI.CloseDialog()
                     break
 
     def __password_prompt(self, user, password):
@@ -262,64 +265,66 @@ class GPMC:
         return selected_gpo
 
     def Show(self):
-        WizardDialog.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
-        WizardDialog.DisableBackButton()
-        WizardDialog.DisableNextButton()
-        WizardDialog.SetFocus('gpmc_tree')
+        Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+        Wizard.DisableBackButton()
+        Wizard.DisableNextButton()
+        UI.SetFocus('gpmc_tree')
 
         current_page = 'Domains'
         old_gpo_guid = None
         gpo_guid = None
-        for ret in WizardDialog.UserInput():
+        while True:
+            ret = UI.UserInput()
             old_gpo_guid = gpo_guid
-            gpo_guid = WizardDialog.QueryWidget('gpmc_tree', 'CurrentItem')
+            gpo_guid = UI.QueryWidget('gpmc_tree', 'CurrentItem')
             if str(ret) in ['back', 'abort']:
                 break
             elif str(ret) == 'next':
                 break
             elif str(ret) == 'add_gpo':
-                Dialog.OpenDialog(self.__name_gpo())
-                for sret in Dialog.UserInput():
+                UI.OpenDialog(self.__name_gpo())
+                while True:
+                    sret = UI.UserInput()
                     if str(sret) == 'ok_name_gpo':
-                        gpo_name = Dialog.QueryWidget('gpo_name_entry', 'Value')
+                        gpo_name = UI.QueryWidget('gpo_name_entry', 'Value')
                         self.q.create_gpo(gpo_name)
-                    Dialog.CloseDialog()
+                    UI.CloseDialog()
                     try:
                         self.gpos = self.q.gpo_list()
                     except:
                         self.gpos = []
-                    WizardDialog.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                    Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
                     break
-            elif WizardDialog.HasSpecialWidget('DumbTab'):
+            elif UI.HasSpecialWidget('DumbTab'):
                 if gpo_guid == 'Domains':
                     if current_page != None:
-                        WizardDialog.DisableNextButton()
-                        WizardDialog.ReplaceWidget('rightPane', Empty())
+                        Wizard.DisableNextButton()
+                        UI.ReplaceWidget('rightPane', Empty())
                         current_page = None
                 elif gpo_guid == self.realm:
                     if current_page != 'Realm':
-                        WizardDialog.DisableNextButton()
-                        WizardDialog.ReplaceWidget('rightPane', self.__realm())
+                        Wizard.DisableNextButton()
+                        UI.ReplaceWidget('rightPane', self.__realm())
                         current_page = 'Realm'
                 else:
                     if str(ret) == 'advanced':
                         self.__gpo_tab_adv(gpo_guid)
                         continue
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
-                        WizardDialog.EnableNextButton()
+                        Wizard.EnableNextButton()
                         self.selected_gpo = self.__select_gpo(gpo_guid)
-                        WizardDialog.ReplaceWidget('rightPane', self.__gpo_tab(gpo_guid))
+                        UI.ReplaceWidget('rightPane', self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
                     if str(ret) == 'Scope':
-                        WizardDialog.ReplaceWidget('gpo_tabContents', self.__scope_page())
+                        UI.ReplaceWidget('gpo_tabContents', self.__scope_page())
                     elif str(ret) == 'Details':
-                        WizardDialog.ReplaceWidget('gpo_tabContents', self.__details_page(gpo_guid))
+                        UI.ReplaceWidget('gpo_tabContents', self.__details_page(gpo_guid))
                     elif str(ret) == 'Settings':
-                        WizardDialog.ReplaceWidget('gpo_tabContents', self.__settings_page())
+                        UI.ReplaceWidget('gpo_tabContents', self.__settings_page())
                     elif str(ret) == 'Delegation':
-                        WizardDialog.ReplaceWidget('gpo_tabContents', self.__delegation_page())
+                        UI.ReplaceWidget('gpo_tabContents', self.__delegation_page())
                     elif str(ret) == 'gpo_status' and self.q:
-                        combo_choice = WizardDialog.QueryWidget('gpo_status', 'Value')
+                        combo_choice = UI.QueryWidget('gpo_status', 'Value')
                         if combo_choice == 'All settings disabled':
                             self.q.set_attr(self.selected_gpo[0], 'flags', ['3'])
                         elif combo_choice == 'Computer configuration settings disabled':
@@ -432,7 +437,7 @@ class GPMC:
         return Frame(gpo_name, ReplacePoint(VBox(self.__details_page(gpo_guid), Right(PushButton('Advanced', ID='advanced'))), ID='gpo_tabContainer'))
 
     def __gpo_tab_adv(self, gpo_guid):
-        WizardDialog.ReplaceWidget('gpo_tabContainer', DumbTab(['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(self.__scope_page(), ID='gpo_tabContents'), ID='gpo_tab'))
+        UI.ReplaceWidget('gpo_tabContainer', DumbTab(['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(self.__scope_page(), ID='gpo_tabContents'), ID='gpo_tab'))
 
     def __gpmc_page(self):
         return HBox(

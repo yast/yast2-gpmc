@@ -4,7 +4,7 @@ import optparse
 from samba import getopt as options
 from samba.auth import system_session
 
-from ycp import init_ui
+#from ycp import init_ui
 
 import sys
 from subprocess import Popen, PIPE
@@ -43,13 +43,13 @@ if __name__ == "__main__":
     creds = credopts.get_credentials(lp, fallback_machine=True)
     session = system_session()
 
-    if opts.ncurses or not have_x():
-        init_ui('ncurses')
-    else:
-        init_ui('qt')
+    #if opts.ncurses or not have_x():
+    #    init_ui('ncurses')
+    #else:
+    #    init_ui('qt')
 
     from dialogs import GPMC, GPME
-    from yui import UISequencer
+    from yast import UISequencer
     s = UISequencer(lp, creds)
     funcs = [(lambda lp, creds: GPMC(lp, creds).Show()),
              (lambda gpo, lp, creds: GPME(gpo, lp, creds).Show())]
