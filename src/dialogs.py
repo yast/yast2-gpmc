@@ -40,7 +40,8 @@ class GPME:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         for k in values.keys():
-                            value = UI.QueryWidget('entry_%s' % k, 'Value')
+                            if values[k]['set'] or values[k]['input']['options']:
+                                value = UI.QueryWidget('entry_%s' % k, 'Value')
                             if values[k]['input']['options']:
                                 value = values[k]['input']['options'][value.strip()]
                             if values[k]['set']:
