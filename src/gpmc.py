@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import optparse
-from samba import getopt as options
-from samba.auth import system_session
+from samba.param import LoadParm
+from samba.credentials import Credentials
 
-import sys
+import sys, os
 from subprocess import Popen, PIPE
 
 if __name__ == "__main__":
     parser = optparse.OptionParser('gpmc [options]')
-    sambaopts = options.SambaOptions(parser)
 
     # Yast command line args
     yast_opt = optparse.OptionGroup(parser, 'Command line options for the YaST2 Qt UI')
@@ -21,21 +20,31 @@ if __name__ == "__main__":
     parser.add_option_group(yast_opt)
 
     # Get the command line options
-    parser.add_option_group(sambaopts)
-    parser.add_option_group(options.VersionOptions(parser))
-    credopts = options.CredentialsOptions(parser)
     parser.add_option('--ncurses', dest='ncurses', help='Whether to run yast via ncurses interface', action='store_true')
+    credopts = optparse.OptionGroup(parser, 'Credentials Options')
+    credopts.add_option('--password', dest='password', help='Password')
+    credopts.add_option('-U', '--username', dest='username', help='Username')
+    credopts.add_option('--krb5-ccache', dest='krb5_ccache', help='Kerberos Credentials cache')
     parser.add_option_group(credopts)
 
     # Set the options and the arguments
     (opts, args) = parser.parse_args()
 
     # Set the loadparm context
-    lp = sambaopts.get_loadparm()
+    lp = LoadParm()
+    if os.getenv("SMB_CONF_PATH") is not None:
+        lp.load(os.getenv("SMB_CONF_PATH"))
+    else:
+        lp.load_default()
 
     # Initialize the session
-    creds = credopts.get_credentials(lp, fallback_machine=True)
-    session = system_session()
+    creds = Credentials()
+    if opts.username and opts.password:
+        creds.set_username(opts.username)
+        creds.set_password(opts.password)
+    elif opts.krb5_ccache:
+        creds.set_named_ccache(opts.krb5_ccache)
+    creds.guess(lp)
 
     from dialogs import GPMC, GPME
     from yast import UISequencer
