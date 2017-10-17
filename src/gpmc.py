@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
+import sys, os
 import optparse
+
 from samba.param import LoadParm
 from samba.credentials import Credentials
 
-import sys, os
 from subprocess import Popen, PIPE
+
+sys.path.append(sys.path[0]+"/../include/gpmc")
 
 if __name__ == "__main__":
     parser = optparse.OptionParser('gpmc [options]')
