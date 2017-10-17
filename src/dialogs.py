@@ -65,7 +65,7 @@ class GPME:
         return ret
 
     def __button_entry(self, k, values, value):
-        return TextEntry(values[k]['title'], value, ID='entry_%s' % k)
+        return TextEntry(Id('entry_%s' % k), values[k]['title'], value)
 
     def __label_display(self, k, values, value):
         return Label('%s: %s' % (values[k]['title'], values[k]['valstr'](value)))
@@ -78,23 +78,23 @@ class GPME:
                 continue
             if value[-1]['input']['type'] == 'TextEntry':
                 items.append(Left(
-                    ReplacePoint(TextEntry(value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '', ID='entry_%s' % k), ID='text_entry_%s' % k),
+                    ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
                 ))
             elif value[-1]['input']['type'] == 'ComboBox':
                 combo_options = []
                 current = value[-1]['valstr'](value[-1]['get'])
                 for sk in value[-1]['input']['options'].keys():
-                    combo_options.append((sk, current == sk))
-                items.append(Left(ComboBox(value[-1]['title'], combo_options, ID='entry_%s' % k)))
+                    combo_options.append(Item(sk, current == sk))
+                items.append(Left(ComboBox(Id('entry_%s' % k), value[-1]['title'], combo_options)))
             elif value[-1]['input']['type'] == 'Label':
                 items.append(Left(
-                    ReplacePoint(self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else ''), ID='label_%s' % k),
+                    ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '')),
                 ))
             elif value[-1]['input']['type'] == 'ButtonEntry':
                 items.append(Left(
                     VBox(
-                        ReplacePoint(self.__button_entry(k, values, value[-1]['get'] if value[-1]['get'] else ''), ID='button_entry_%s' % k),
-                        PushButton('Select', ID='select_entry_%s' % k),
+                        ReplacePoint(Id('button_entry_%s' % k), self.__button_entry(k, values, value[-1]['get'] if value[-1]['get'] else '')),
+                        PushButton(Id('select_entry_%s' % k), 'Select'),
                     )
                 ))
         items = tuple(items)
@@ -106,9 +106,9 @@ class GPME:
             self.__change_values_prompt(values),
             VSpacing(),
             Right(HBox(
-                PushButton('OK', ID='ok_change_setting'),
-                PushButton('Cancel', ID='cancel_change_setting'),
-                PushButton('Apply', ID='apply_change_setting'),
+                PushButton(Id('ok_change_setting'), 'OK'),
+                PushButton(Id('cancel_change_setting'), 'Cancel'),
+                PushButton(Id('apply_change_setting'), 'Apply'),
             )),
             VSpacing(),
         ), HSpacing() ))
@@ -123,52 +123,53 @@ class GPME:
         if conf is None:
             conf = terms['new']()
         opts = terms['opts'](conf)
-        header = terms['header']()
+        header = tuple(terms['header']())
+        header = Header(*header)
         for key in opts:
             values = sorted(opts[key]['values'].values(), key=(lambda x : x['order']))
             vals = tuple([k['valstr'](k['get']) for k in values])
-            items.append([key, vals])
+            items.append(Item(Id(key), *vals))
         buttons = []
         if terms['add']:
-            buttons.append(PushButton('Add', ID='add_policy'))
-        buttons.append(PushButton('Delete', ID='delete_policy'))
+            buttons.append(PushButton(Id('add_policy'), 'Add'))
+        buttons.append(PushButton(Id('delete_policy'), 'Delete'))
         buttons = tuple(buttons)
 
         return VBox(
-            Table(header, items, ID='policy_table', opts=['notify']),
+            Table(Id('policy_table'), Opt('notify'), header, items),
             Right(HBox(*buttons)),
         )
 
     def __gpme_page(self):
         return HBox(
             HWeight(1, self.__policy_tree()),
-            HWeight(2, ReplacePoint(Empty(), ID='rightPane')),
+            HWeight(2, ReplacePoint(Id('rightPane'), Empty())),
             )
 
     def __policy_tree(self):
         computer_config = [
-            Node('Policies', False,
+            Item('Policies', False,
                 [
-                    Node('Software Settings', False,
+                    Item('Software Settings', False,
                         [
-                            Node('Software installation', False, [], ID='comp_software_install'),
+                            Item(Id('comp_software_install'), 'Software installation', False, []),
                         ]
                     ),
-                    Node('OS Settings', False,
+                    Item('OS Settings', False,
                         [
-                            Node('Scripts', False,
+                            Item('Scripts', False,
                                 [
-                                    Node('Startup', False, [], ID='comp_scripts_startup'),
-                                    Node('Shutdown', False, [], ID='comp_scripts_shutdown'),
+                                    Item(Id('comp_scripts_startup'), 'Startup', False, []),
+                                    Item(Id('comp_scripts_shutdown'), 'Shutdown', False, []),
                                 ]
                             ),
-                            Node('Security Settings', False,
+                            Item('Security Settings', False,
                                 [
-                                    Node('Account Policy', False,
+                                    Item('Account Policy', False,
                                         [
-                                            Node('Password Policy', False, [], ID='comp_passwd'),
-                                            Node('Account Lockout Policy', False, [], ID='comp_lockout'),
-                                            Node('Kerberos Policy', False, [], ID='comp_krb'),
+                                            Item(Id('comp_passwd'), 'Password Policy', False, []),
+                                            Item(Id('comp_lockout'), 'Account Lockout Policy', False, []),
+                                            Item(Id('comp_krb'), 'Kerberos Policy', False, []),
                                         ]
                                     ),
                                 ]
@@ -177,11 +178,11 @@ class GPME:
                     ),
                 ]
             ),
-            Node('Preferences', False,
+            Item('Preferences', False,
                 [
-                    Node('OS Settings', False,
+                    Item('OS Settings', False,
                         [
-                            Node('Environment', False, [], ID='comp_env_var'),
+                            Item(Id('comp_env_var'), 'Environment', False, []),
                         ]
                     ),
                 ]
@@ -189,17 +190,17 @@ class GPME:
         ]
 
         user_config = [
-            Node('Policies', False,
+            Item('Policies', False,
                 [
-                    Node('OS Settings', False,
+                    Item('OS Settings', False,
                         [
-                            Node('Internet Browser Maintenance', False,
+                            Item('Internet Browser Maintenance', False,
                                 [
-                                    Node('Connection', False, [], ID='user_internet_maint_conn'),
-                                    Node('URLs', False,
+                                    Item(Id('user_internet_maint_conn'), 'Connection', False, []),
+                                    Item(Id('user_internet_maint_urls'), 'URLs', False,
                                         [
-                                            Node('Favorites and Links', False, [], ID='user_internet_maint_links'),
-                                        ], ID='user_internet_maint_urls'),
+                                            Item(Id('user_internet_maint_links'), 'Favorites and Links', False, []),
+                                        ]),
                                 ]
                             ),
                         ]
@@ -208,16 +209,16 @@ class GPME:
             ),
         ]
 
-        contents = Tree(self.selected_gpo[1]['displayName'][-1],
+        contents = Tree(Id('gpme_tree'), Opt('notify'), self.selected_gpo[1]['displayName'][-1],
             [
-                Node('Computer Configuration', True,
+                Item('Computer Configuration', True,
                     computer_config
                 ),
-                Node('User Configuration', True,
+                Item('User Configuration', True,
                     user_config
                 ),
             ],
-        ID='gpme_tree', opts=['notify'])
+        )
         return contents
 
 class GPMC:
@@ -249,11 +250,11 @@ class GPMC:
 
     def __password_prompt(self, user, password):
         return MinWidth(30, VBox(
-            Left(TextEntry('Username', ID='username_prompt')),
-            Left(Password('Password', ID='password_prompt')),
+            Left(TextEntry(Id('username_prompt'), 'Username')),
+            Left(Password(Id('password_prompt'), 'Password')),
             Right(HBox(
-                PushButton('OK', ID='creds_ok'),
-                PushButton('Cancel', ID='creds_cancel'),
+                PushButton(Id('creds_ok'), 'OK'),
+                PushButton(Id('creds_cancel'), 'Cancel'),
             ))
         ))
 
@@ -339,10 +340,10 @@ class GPMC:
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
-            TextEntry('GPO Name', ID='gpo_name_entry'),
+            TextEntry(Id('gpo_name_entry'), 'GPO Name'),
             Right(HBox(
-                PushButton('OK', ID='ok_name_gpo'),
-                PushButton('Cancel', ID='cancel_name_gpo')
+                PushButton(Id('ok_name_gpo'), 'OK'),
+                PushButton(Id('cancel_name_gpo'), 'Cancel')
             ))
         ))
 
@@ -367,7 +368,7 @@ class GPMC:
             status_selection[1] = True
         elif self.selected_gpo[1]['flags'][-1] == '3':
             status_selection[0] = True
-        combo_options = [('All settings disabled', status_selection[0]), ('Computer configuration settings disabled', status_selection[1]), ('Enabled', status_selection[2]), ('User configuration settings disabled', status_selection[3])]
+        combo_options = [Item('All settings disabled', status_selection[0]), Item('Computer configuration settings disabled', status_selection[1]), Item('Enabled', status_selection[2]), Item('User configuration settings disabled', status_selection[3])]
 
         return Top(
             HBox(
@@ -389,7 +390,7 @@ class GPMC:
                     Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
                     Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) & 0x0000FFFF))), VSpacing(),
                     Left(Label(gpo_guid)), VSpacing(),
-                    Left(ComboBox('', combo_options, ID='gpo_status', opts=['notify'])), VSpacing(),
+                    Left(ComboBox(Id('gpo_status'), Opt('notify'), '', combo_options)), VSpacing(),
                 )),
             )
         )
@@ -403,20 +404,20 @@ class GPMC:
     def __forest(self):
         items = []
         for gpo in self.gpos:
-            items.append(Node(gpo[1]['displayName'][-1], ID=gpo[1]['name'][-1]))
-        forest = [Node('Domains', True, [Node(self.realm, True, items)])]
-        contents = Tree('Group Policy Management', forest, ID='gpmc_tree', opts=['notify'])
+            items.append(Item(Id(gpo[1]['name'][-1]), gpo[1]['displayName'][-1]))
+        forest = [Item('Domains', True, [Item(self.realm, True, items)])]
+        contents = Tree(Id('gpmc_tree'), Opt('notify'), 'Group Policy Management', forest)
         
         return contents
 
     def __realm(self):
         return VBox(
-            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(self.__realm_links(), ID='realm_tabContainer'))),
-            Right(HBox(PushButton('Create a GPO', ID='add_gpo'))),
+            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
+            Right(HBox(PushButton(Id('add_gpo'), 'Create a GPO'))),
         )
 
     def __realm_links(self):
-        header = ['Link Order', 'GPO', 'Enforced', 'Link Enabled', 'GPO Status', 'WMI Filter', 'Modified', 'Domain']
+        header = Header('Link Order', 'GPO', 'Enforced', 'Link Enabled', 'GPO Status', 'WMI Filter', 'Modified', 'Domain')
         contents = []
         for gpo in self.gpos:
             status = ''
@@ -428,21 +429,21 @@ class GPMC:
                 status = 'Computer configuration settings disabled'
             elif gpo[1]['flags'][-1] == '3':
                 status = 'All settings disabled'
-            vals = ('', gpo[1]['displayName'][-1], '', '', status, '', self.__ms_time_to_readable(gpo[1]['whenChanged'][-1]), '')
+            vals = Item('', gpo[1]['displayName'][-1], '', '', status, '', self.__ms_time_to_readable(gpo[1]['whenChanged'][-1]), '')
             contents.append(vals)
 
-        return Table(header, items=contents, ID='link_order')
+        return Table(Id('link_order'), header, contents)
 
     def __gpo_tab(self, gpo_guid):
         gpo_name = self.selected_gpo[1]['displayName'][-1]
-        return Frame(gpo_name, ReplacePoint(VBox(self.__details_page(gpo_guid), Right(PushButton('Advanced', ID='advanced'))), ID='gpo_tabContainer'))
+        return Frame(gpo_name, ReplacePoint(Id('gpo_tabContainer'), VBox(self.__details_page(gpo_guid), Right(PushButton(Id('advanced'), 'Advanced')))))
 
     def __gpo_tab_adv(self, gpo_guid):
-        UI.ReplaceWidget('gpo_tabContainer', DumbTab(['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(self.__scope_page(), ID='gpo_tabContents'), ID='gpo_tab'))
+        UI.ReplaceWidget('gpo_tabContainer', DumbTab(Id('gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Id('gpo_tabContents'), self.__scope_page())))
 
     def __gpmc_page(self):
         return HBox(
             HWeight(1, self.__forest()),
-            HWeight(2, ReplacePoint(Empty(), ID='rightPane')),
+            HWeight(2, ReplacePoint(Id('rightPane'), Empty())),
             )
 
