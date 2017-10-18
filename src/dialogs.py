@@ -65,7 +65,7 @@ class GPME:
         return ret
 
     def __button_entry(self, k, values, value):
-        return TextEntry(Id('entry_%s' % k), values[k]['title'], value)
+        return TextEntry(Id('entry_%s' % k), Opt('hstretch'), values[k]['title'], value)
 
     def __label_display(self, k, values, value):
         return Label('%s: %s' % (values[k]['title'], values[k]['valstr'](value)))
@@ -78,14 +78,14 @@ class GPME:
                 continue
             if value[-1]['input']['type'] == 'TextEntry':
                 items.append(Left(
-                    ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
+                    ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
                 ))
             elif value[-1]['input']['type'] == 'ComboBox':
                 combo_options = []
                 current = value[-1]['valstr'](value[-1]['get'])
                 for sk in value[-1]['input']['options'].keys():
                     combo_options.append(Item(sk, current == sk))
-                items.append(Left(ComboBox(Id('entry_%s' % k), value[-1]['title'], combo_options)))
+                items.append(Left(ComboBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], combo_options)))
             elif value[-1]['input']['type'] == 'Label':
                 items.append(Left(
                     ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '')),
@@ -250,8 +250,8 @@ class GPMC:
 
     def __password_prompt(self, user, password):
         return MinWidth(30, VBox(
-            Left(TextEntry(Id('username_prompt'), 'Username')),
-            Left(Password(Id('password_prompt'), 'Password')),
+            Left(TextEntry(Id('username_prompt'), Opt('hstretch'), 'Username')),
+            Left(Password(Id('password_prompt'), Opt('hstretch'), 'Password')),
             Right(HBox(
                 PushButton(Id('creds_ok'), 'OK'),
                 PushButton(Id('creds_cancel'), 'Cancel'),
@@ -340,7 +340,7 @@ class GPMC:
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
-            TextEntry(Id('gpo_name_entry'), 'GPO Name'),
+            TextEntry(Id('gpo_name_entry'), Opt('hstretch'), 'GPO Name'),
             Right(HBox(
                 PushButton(Id('ok_name_gpo'), 'OK'),
                 PushButton(Id('cancel_name_gpo'), 'Cancel')
@@ -390,7 +390,7 @@ class GPMC:
                     Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
                     Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) & 0x0000FFFF))), VSpacing(),
                     Left(Label(gpo_guid)), VSpacing(),
-                    Left(ComboBox(Id('gpo_status'), Opt('notify'), '', combo_options)), VSpacing(),
+                    Left(ComboBox(Id('gpo_status'), Opt('notify', 'hstretch'), '', combo_options)), VSpacing(),
                 )),
             )
         )
