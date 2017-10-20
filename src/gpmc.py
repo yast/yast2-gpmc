@@ -51,8 +51,11 @@ if __name__ == "__main__":
 
     from dialogs import GPMC, GPME
     from yast import UISequencer
+    from yast import startup_yuicomponent, shutdown_yuicomponent
+    startup_yuicomponent()
     s = UISequencer(lp, creds)
     funcs = [(lambda lp, creds: GPMC(lp, creds).Show()),
              (lambda gpo, lp, creds: GPME(gpo, lp, creds).Show())]
     s.run(funcs)
+    shutdown_yuicomponent()
 
