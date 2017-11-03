@@ -51,17 +51,11 @@ if __name__ == "__main__":
 
     from dialogs import GPMC, GPME
     from yast import UISequencer
-    from yast import startup_yuicomponent, shutdown_yuicomponent
-    component_started = False
     try:
-        startup_yuicomponent()
-        component_started = True
         s = UISequencer(lp, creds)
         funcs = [(lambda lp, creds: GPMC(lp, creds).Show()),
                 (lambda gpo, lp, creds: GPME(gpo, lp, creds).Show())]
         s.run(funcs)
     except:
         traceback.print_exc(file=sys.stdout)
-    if (component_started):
-        shutdown_yuicomponent()
 
