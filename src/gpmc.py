@@ -10,6 +10,8 @@ from subprocess import Popen, PIPE
 
 sys.path.append(sys.path[0]+"/../include/gpmc")
 
+from wizards import GPMCSequence
+
 if __name__ == "__main__":
     parser = optparse.OptionParser('gpmc [options]')
 
@@ -49,13 +51,8 @@ if __name__ == "__main__":
         creds.set_named_ccache(opts.krb5_ccache)
     creds.guess(lp)
 
-    from dialogs import GPMC, GPME
-    from yast import UISequencer
     try:
-        s = UISequencer(lp, creds)
-        funcs = [(lambda lp, creds: GPMC(lp, creds).Show()),
-                (lambda gpo, lp, creds: GPME(gpo, lp, creds).Show())]
-        s.run(funcs)
+        GPMCSequence(lp, creds)
     except:
         traceback.print_exc(file=sys.stdout)
 

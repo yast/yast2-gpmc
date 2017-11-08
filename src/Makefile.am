@@ -8,6 +8,7 @@ client_DATA =			\
 
 #TODO: This must be modified to python can know from where can import!
 ynclude_DATA =			\
+	wizards.py		\
 	dialogs.py		\
 	defaults.py		\
 	complex.py

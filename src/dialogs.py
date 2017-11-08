@@ -5,10 +5,12 @@ from complex import GPConnection, GPOConnection
 from yast import *
 import re
 
+selected_gpo = None
+
 class GPME:
-    def __init__(self, selected_gpo, lp, creds):
-        self.selected_gpo = selected_gpo
-        self.conn = GPOConnection(lp, creds, self.selected_gpo[1]['gPCFileSysPath'][-1])
+    def __init__(self, lp, creds):
+        global selected_gpo
+        self.conn = GPOConnection(lp, creds, selected_gpo[1]['gPCFileSysPath'][-1])
 
     def Show(self):
         if not self.conn:
@@ -62,7 +64,7 @@ class GPME:
                 UI.ReplaceWidget('rightPane', self.__display_policy(policy))
                 UI.SetFocus(str(ret))
 
-        return ret
+        return Symbol(ret)
 
     def __button_entry(self, k, values, value):
         return TextEntry(Id('entry_%s' % k), Opt('hstretch'), values[k]['title'], value)
@@ -147,6 +149,7 @@ class GPME:
             )
 
     def __policy_tree(self):
+        global selected_gpo
         computer_config = [
             Item('Policies', False,
                 [
@@ -209,7 +212,7 @@ class GPME:
             ),
         ]
 
-        contents = Tree(Id('gpme_tree'), Opt('notify'), self.selected_gpo[1]['displayName'][-1],
+        contents = Tree(Id('gpme_tree'), Opt('notify'), selected_gpo[1]['displayName'][-1],
             [
                 Item('Computer Configuration', True,
                     computer_config
@@ -223,6 +226,7 @@ class GPME:
 
 class GPMC:
     def __init__(self, lp, creds):
+        global selected_gpo
         self.__get_creds(creds)
         self.realm = lp.get('realm')
         self.lp = lp
@@ -232,7 +236,7 @@ class GPMC:
             self.gpos = self.q.gpo_list()
         except:
             self.gpos = []
-        self.selected_gpo = None
+        selected_gpo = None
 
     def __get_creds(self, creds):
         if not creds.get_username() or not creds.get_password():
@@ -259,6 +263,7 @@ class GPMC:
         ))
 
     def __select_gpo(self, gpo_guid):
+        global selected_gpo
         selected_gpo = None
         for gpo in self.gpos:
             if gpo[1]['name'][-1] == gpo_guid:
@@ -267,6 +272,7 @@ class GPMC:
         return selected_gpo
 
     def Show(self):
+        global selected_gpo
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         Wizard.DisableBackButton()
         Wizard.DisableNextButton()
@@ -314,7 +320,7 @@ class GPMC:
                         continue
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         Wizard.EnableNextButton()
-                        self.selected_gpo = self.__select_gpo(gpo_guid)
+                        selected_gpo = self.__select_gpo(gpo_guid)
                         UI.ReplaceWidget('rightPane', self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
                     if str(ret) == 'Scope':
@@ -328,15 +334,15 @@ class GPMC:
                     elif str(ret) == 'gpo_status' and self.q:
                         combo_choice = UI.QueryWidget('gpo_status', 'Value')
                         if combo_choice == 'All settings disabled':
-                            self.q.set_attr(self.selected_gpo[0], 'flags', ['3'])
+                            self.q.set_attr(selected_gpo[0], 'flags', ['3'])
                         elif combo_choice == 'Computer configuration settings disabled':
-                            self.q.set_attr(self.selected_gpo[0], 'flags', ['2'])
+                            self.q.set_attr(selected_gpo[0], 'flags', ['2'])
                         elif combo_choice == 'Enabled':
-                            self.q.set_attr(self.selected_gpo[0], 'flags', ['0'])
+                            self.q.set_attr(selected_gpo[0], 'flags', ['0'])
                         elif combo_choice == 'User configuration settings disabled':
-                            self.q.set_attr(self.selected_gpo[0], 'flags', ['1'])
+                            self.q.set_attr(selected_gpo[0], 'flags', ['1'])
 
-        return (self.selected_gpo, ret)
+        return Symbol(ret)
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
@@ -359,14 +365,15 @@ class GPMC:
             return '%s/%s/%s %s:%s:%s UTC' % (m.group('month'), m.group('day'), m.group('year'), m.group('hour'), m.group('minute'), m.group('second'))
 
     def __details_page(self, gpo_guid):
+        global selected_gpo
         status_selection = [False, False, False, False]
-        if self.selected_gpo[1]['flags'][-1] == '0':
+        if selected_gpo[1]['flags'][-1] == '0':
             status_selection[2] = True
-        elif self.selected_gpo[1]['flags'][-1] == '1':
+        elif selected_gpo[1]['flags'][-1] == '1':
             status_selection[3] = True
-        elif self.selected_gpo[1]['flags'][-1] == '2':
+        elif selected_gpo[1]['flags'][-1] == '2':
             status_selection[1] = True
-        elif self.selected_gpo[1]['flags'][-1] == '3':
+        elif selected_gpo[1]['flags'][-1] == '3':
             status_selection[0] = True
         combo_options = [Item('All settings disabled', status_selection[0]), Item('Computer configuration settings disabled', status_selection[1]), Item('Enabled', status_selection[2]), Item('User configuration settings disabled', status_selection[3])]
 
@@ -385,10 +392,10 @@ class GPMC:
                 HWeight(2, VBox(
                     Left(Label(self.realm)), VSpacing(),
                     Left(Label('Unknown')), VSpacing(),
-                    Left(Label(self.__ms_time_to_readable(self.selected_gpo[1]['whenCreated'][-1]))), VSpacing(),
-                    Left(Label(self.__ms_time_to_readable(self.selected_gpo[1]['whenChanged'][-1]))), VSpacing(),
-                    Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
-                    Left(Label('%d' % (int(self.selected_gpo[1]['versionNumber'][-1]) & 0x0000FFFF))), VSpacing(),
+                    Left(Label(self.__ms_time_to_readable(selected_gpo[1]['whenCreated'][-1]))), VSpacing(),
+                    Left(Label(self.__ms_time_to_readable(selected_gpo[1]['whenChanged'][-1]))), VSpacing(),
+                    Left(Label('%d' % (int(selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
+                    Left(Label('%d' % (int(selected_gpo[1]['versionNumber'][-1]) & 0x0000FFFF))), VSpacing(),
                     Left(Label(gpo_guid)), VSpacing(),
                     Left(ComboBox(Id('gpo_status'), Opt('notify', 'hstretch'), '', combo_options)), VSpacing(),
                 )),
@@ -435,7 +442,8 @@ class GPMC:
         return Table(Id('link_order'), header, contents)
 
     def __gpo_tab(self, gpo_guid):
-        gpo_name = self.selected_gpo[1]['displayName'][-1]
+        global selected_gpo
+        gpo_name = selected_gpo[1]['displayName'][-1]
         return Frame(gpo_name, ReplacePoint(Id('gpo_tabContainer'), VBox(self.__details_page(gpo_guid), Right(PushButton(Id('advanced'), 'Advanced')))))
 
     def __gpo_tab_adv(self, gpo_guid):
