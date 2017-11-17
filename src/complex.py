@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import ldap, ldap.modlist, ldap.sasl
 from samba import smb
 from ConfigParser import ConfigParser

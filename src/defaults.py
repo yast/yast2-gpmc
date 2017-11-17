@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import xml.etree.ElementTree as etree
 import uuid
 import os.path

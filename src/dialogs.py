@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from defaults import Policies, fetch_inf_value
 from complex import GPConnection, GPOConnection
 from yast import *

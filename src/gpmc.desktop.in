@@ -16,7 +16,7 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=gpmc
 
 Icon=yast-gpmc
-Exec=/usr/bin/xdg-su -c '@CLIENTDIR@/gpmc.py'
+Exec="/usr/bin/xdg-su -c '@CLIENTDIR@/gpmc.py'"
 
 Name=Group Policy Management Console
 GenericName=Manage Group Policy

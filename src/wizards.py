@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 from dialogs import GPMC, GPME
 from yast import Wizard, UI, Sequencer, Code, Symbol
 
