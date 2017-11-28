@@ -3,6 +3,8 @@ import uuid
 import os.path
 from subprocess import Popen, PIPE
 
+from yast import import_module
+import_module('UI')
 from yast import UI
 def select_script(title, policy, conn):
     full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)

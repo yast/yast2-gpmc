@@ -1,4 +1,8 @@
 from dialogs import GPMC, GPME
+from yast import import_module
+import_module('Wizard')
+import_module('UI')
+import_module('Sequencer')
 from yast import Wizard, UI, Sequencer, Code, Symbol
 
 def GPMCSequence(lp, creds):

@@ -1,5 +1,8 @@
 from defaults import Policies, fetch_inf_value
 from complex import GPConnection, GPOConnection
+from yast import import_module
+import_module('Wizard')
+import_module('UI')
 from yast import *
 import re
 
