@@ -74,7 +74,7 @@ class GPConnection:
             gpo.initialize_empty_gpo()
             # TODO: GPO links
         except Exception as e:
-            print str(e)
+            print(str(e))
 
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
@@ -259,14 +259,14 @@ class GPOConnection(GPConnection):
             elif e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print e[1]
+                print(e[1])
         try:
             self.conn.mkdir(path)
         except Exception as e:
             if e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print e[1]
+                print(e[1])
 
     def __write(self, filename, text):
         path = '\\'.join([self.path, filename])
@@ -276,9 +276,9 @@ class GPOConnection(GPConnection):
             self.conn.savefile(path, text)
         except Exception as e:
             if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
-                print e[1] % (path)
+                print(e[1] % (path))
             else:
-                print e[1]
+                print(e[1])
 
     def __write_inf(self, filename, inf_config):
         out = StringIO()

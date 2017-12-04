@@ -6,7 +6,7 @@ from samba.credentials import Credentials
 
 from subprocess import Popen, PIPE
 
-sys.path.append(sys.path[0]+"/../include/gpmc")
+sys.path.append('@INCLUDEDIR@')
 
 from wizards import GPMCSequence
 

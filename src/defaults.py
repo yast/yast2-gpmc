@@ -893,5 +893,5 @@ Policies = {
 }
 
 if __name__ == "__main__":
-    print Policies
+    print(Policies)
 

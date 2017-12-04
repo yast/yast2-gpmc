@@ -22,9 +22,13 @@ desktop_DATA =			\
 
 moduledir = ${prefix}/share/YaST2/modules
 
+gpmc.py: gpmc.py.in
+	sed -e 's;[@]INCLUDEDIR[@];$(yncludedir);g' < $(srcdir)/gpmc.py.in > $(srcdir)/gpmc.py
+
 # create a symlink for local build, #145327
 gpmc:
 	ln -sf . $@
 ycpchook = gpmc
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
+CLEANFILES = gpmc.py gpmc.desktop
