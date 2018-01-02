@@ -380,7 +380,7 @@ Policies = {
                 'title' : 'Parital',
                 'get' : a.find('Properties').attrib['partial'] if a is not None and a.find('Properties') is not None and 'partial' in a.find('Properties').attrib.keys() else '',
                 'set' : (lambda v : a.find('Properties').set('partial', v)),
-                'valstr' : (lambda v : 'False' if int(v) == 0 else 'True'),
+                'valstr' : (lambda v : 'False' if v and int(v) == 0 else 'True'),
                 'input' : {
                     'type' : 'ComboBox',
                     'options' : {'True' : '1', 'False' : '0'},
