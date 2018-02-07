@@ -1,7 +1,7 @@
 import ldap, ldap.modlist, ldap.sasl
 from samba import smb
-from ConfigParser import ConfigParser
-from StringIO import StringIO
+from configparser import ConfigParser
+from io import StringIO
 import xml.etree.ElementTree as etree
 import os.path, sys
 from samba.net import Net
@@ -11,6 +11,30 @@ import uuid
 from ldap.modlist import addModlist as addlist
 from ldap.modlist import modifyModlist as modlist
 import re
+import traceback
+
+# python2 strings not bytes. python3-ldap returns
+# attributes as bytes. Rather than change all the code
+# this attempts to minimise the changes by trying to present the
+# ldap results as they would have appeared in the previous python2
+# existence.
+def stringify_ldap_results(ldap_res):
+    new_res = ldap_res
+    for entry in ldap_res:
+        attrs = entry[1]
+        for key in attrs:
+            new_list = []
+            for value in attrs[key]:
+                try:
+                    new_val = str(value, 'utf8')
+                    new_list.append(new_val)
+                except Exception as e:
+                    #ObjectID I think it's the only one falls into this category
+                    #print ("failed to stringify value for key %s value %s\n"%(key, value))
+                    # fallback to bytes
+                    new_list.append(value)
+            attrs[key] = new_list
+    return new_res
 
 class GPConnection:
     def __init__(self, lp, creds):
@@ -28,13 +52,15 @@ class GPConnection:
 
     def __kinit_for_gssapi(self):
         p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
-        p.stdin.write('%s\n' % self.creds.get_password())
+        p.stdin.write(('%s\n'%self.creds.get_password()).encode())
+        p.stdin.flush()
         return p.wait() == 0
 
     def realm_to_dn(self, realm):
         return ','.join(['DC=%s' % part for part in realm.lower().split('.')])
 
     def __well_known_container(self, container):
+        res = None
         if container == 'system':
             wkguiduc = 'AB1D30F3768811D1ADED00C04FD8D5CD'
         elif container == 'computers':
@@ -44,11 +70,22 @@ class GPConnection:
         elif container == 'users':
             wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
         result = self.l.search_s('<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', ['distinguishedName'])
+        result = stringify_ldap_results(result)
         if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
-            return result[0][1]['distinguishedName'][-1]
+            res = result[0][1]['distinguishedName'][-1]
+
+        return res
 
     def gpo_list(self):
-        return self.l.search_s(self.__well_known_container('system'), ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
+        result = None
+        try:
+            res = self.__well_known_container('system')
+            result = self.l.search_s(res, ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
+            result = stringify_ldap_results(result)
+        except Exception as e:
+             print ("#### caught exception %s\n"%e)
+             traceback.print_exc(file=sys.stdout)
+        return result
 
     def set_attr(self, dn, key, value):
         self.l.modify(dn, [(1, key, None), (0, key, value)])
@@ -75,6 +112,7 @@ class GPConnection:
             # TODO: GPO links
         except Exception as e:
             print(str(e))
+            traceback.print_exc(file=sys.stdout)
 
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
@@ -87,7 +125,9 @@ class GPOConnection(GPConnection):
         self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
         try:
             self.conn = smb.SMB(path_parts[0], path_parts[1], lp=self.lp, creds=self.creds)
-        except:
+        except Exception as e:
+            print ("Exception %s"%str(e))
+            traceback.print_exc(file=sys.stdout)
             self.conn = None
 
     def update_machine_gpe_ini(self, extension):
@@ -172,6 +212,7 @@ class GPOConnection(GPConnection):
         dn = dn % self.gpo_dn
         try:
             resp = self.l.search_s(dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
+            resp = stringify_ldap_results(resp)
             keys = ['objectClass', 'msiFileList', 'msiScriptPath', 'displayName', 'versionNumberHi', 'versionNumberLo']
             results = {a[-1]['name'][-1]: {k: a[-1][k] for k in a[-1].keys() if k in keys} for a in resp}
         except Exception as e:
@@ -227,11 +268,14 @@ class GPOConnection(GPConnection):
 
     def __parse_inf(self, filename):
         inf_conf = ConfigParser()
+        print ("###### about to parse (inf) %s\n"%filename)
         if self.conn:
             try:
                 policy = self.conn.loadfile('\\'.join([self.path, filename]))
-            except:
+            except Exception as e:
+                print ("###### Exception!!!! %s"%e)
                 policy = ''
+            print ("##### policy content is %s\n"%policy)
             inf_conf.optionxform=str
             try:
                 inf_conf.readfp(StringIO(policy))
