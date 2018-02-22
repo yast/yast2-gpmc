@@ -5,6 +5,7 @@ import_module('Wizard')
 import_module('UI')
 from yast import *
 import re
+from functools import cmp_to_key
 
 selected_gpo = None
 
@@ -75,7 +76,8 @@ class GPME:
 
     def __change_values_prompt(self, values):
         items = []
-        for value in sorted(values.iteritems(), cmp=(lambda a,b : a[-1]['order']-b[-1]['order'])):
+        ckey = cmp_to_key(lambda a,b : a[-1]['order']-b[-1]['order'])
+        for value in sorted(values.items(), key=ckey):
             k = value[0]
             if not value[-1]['input']:
                 continue
