@@ -132,7 +132,7 @@ class GPME:
         header = Header(*header)
         for key in opts:
             values = sorted(opts[key]['values'].values(), key=(lambda x : x['order']))
-            vals = tuple([k['valstr'](k['get']) for k in values])
+            vals = tuple([k['valstr'](k['get'].decode('utf-8')) if type(k['get']) is bytes else k['valstr'](k['get']) for k in values])
             items.append(Item(Id(key), *vals))
         buttons = []
         if terms['add']:

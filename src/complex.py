@@ -268,17 +268,15 @@ class GPOConnection(GPConnection):
 
     def __parse_inf(self, filename):
         inf_conf = ConfigParser()
-        print ("###### about to parse (inf) %s\n"%filename)
         if self.conn:
             try:
                 policy = self.conn.loadfile('\\'.join([self.path, filename]))
             except Exception as e:
-                print ("###### Exception!!!! %s"%e)
+                sys.stderr.write(str(e))
                 policy = ''
-            print ("##### policy content is %s\n"%policy)
             inf_conf.optionxform=str
             try:
-                inf_conf.readfp(StringIO(policy))
+                inf_conf.readfp(StringIO(policy.decode('utf-8')))
             except:
                 inf_conf.readfp(StringIO(policy.decode('utf-16')))
         return inf_conf
