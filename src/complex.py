@@ -177,7 +177,7 @@ class GPOConnection(GPConnection):
 
         if not ini_conf.has_section('General'):
             ini_conf.add_section('General')
-        ini_conf.set('General', 'Version', current)
+        ini_conf.set('General', 'Version', str(current))
         self.write('GPT.INI', ini_conf)
 
         self.set_attr(self.gpo_dn, 'versionNumber', current)
@@ -298,19 +298,19 @@ class GPOConnection(GPConnection):
         try:
             self.conn.mkdir(directory)
         except Exception as e:
-            if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
+            if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
                 self.__smb_mkdir_p(directory)
-            elif e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+            elif e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print(e[1])
+                print(e.args[1])
         try:
             self.conn.mkdir(path)
         except Exception as e:
-            if e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+            if e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print(e[1])
+                print(e.args[1])
 
     def __write(self, filename, text):
         path = '\\'.join([self.path, filename])
@@ -319,10 +319,10 @@ class GPOConnection(GPConnection):
         try:
             self.conn.savefile(path, text)
         except Exception as e:
-            if e[0] == -1073741766: # 0xC000003A: STATUS_OBJECT_PATH_NOT_FOUND
-                print(e[1] % (path))
+            if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
+                print(e.args[1] % (path))
             else:
-                print(e[1])
+                print(e.args[1])
 
     def __write_inf(self, filename, inf_config):
         out = StringIO()
@@ -343,9 +343,9 @@ class GPOConnection(GPConnection):
             try:
                 self.conn.savefile(filename, value)
             except Exception as e:
-                if e[0] == -1073741771: # 0xC0000035: STATUS_OBJECT_NAME_COLLISION
+                if e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
                     sys.stderr.write('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
                 else:
-                    sys.stderr.write(e[1])
+                    sys.stderr.write(e.args[1])
             return filename
 
