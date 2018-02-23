@@ -13,6 +13,28 @@ from ldap.modlist import modifyModlist as modlist
 import re
 import traceback
 
+def open_bytes(filename):
+    if sys.version_info[0] == 3:
+        return open(filename, errors='ignore')
+    else:
+        return open(filename, 'rb')
+
+def dict_to_bytes(d):
+    for key in d.keys():
+        if type(d[key]) is dict:
+            d[key] = dict_to_bytes(d[key])
+        elif type(d[key]) is list:
+            vals = []
+            for val in d[key]:
+                if type(val) is str:
+                    vals.append(val.encode('utf-8'))
+                else:
+                    vals.append(val)
+            d[key] = vals
+        elif type(d[key]) is str:
+            d[key] = d[key].encode('utf-8')
+    return d
+
 # python2 strings not bytes. python3-ldap returns
 # attributes as bytes. Rather than change all the code
 # this attempts to minimise the changes by trying to present the
@@ -137,6 +159,7 @@ class GPOConnection(GPConnection):
         machine_extension_versions = ''
         if ini_conf.has_option('General', 'MachineExtensionVersions'):
             machine_extension_versions = ini_conf.get('General', 'MachineExtensionVersions').encode('ascii')
+        machine_extension_versions = machine_extension_versions.decode('utf-8')
         itr = re.finditer('\[%s:\d+]' % extension, machine_extension_versions)
         try:
             new_ext_str = machine_extension_versions[:m.start()] + machine_extension_versions[m.end():]
@@ -223,7 +246,7 @@ class GPOConnection(GPConnection):
         return results
 
     def __mkdn_p(self, dn):
-        attrs = { 'objectClass' : ['top', 'container'] }
+        attrs = { 'objectClass' : [b'top', b'container'] }
         try:
             self.l.add_s(dn, addlist(attrs))
         except Exception as e:
@@ -243,10 +266,11 @@ class GPOConnection(GPConnection):
         for cn in ldap_config.keys():
             obj_dn = 'CN=%s,%s' % (cn, dn % self.gpo_dn)
             if 'objectClass' not in ldap_config[cn]:
-                ldap_config[cn]['objectClass'] = ['top', 'packageRegistration']
+                ldap_config[cn]['objectClass'] = [b'top', b'packageRegistration']
             if 'msiFileList' not in ldap_config[cn]:
-                ldap_config[cn]['msiFileList'] = os.path.splitext(ldap_config[cn]['msiScriptPath'][-1])[0] + '.zap'
+                ldap_config[cn]['msiFileList'] = [os.path.splitext(ldap_config[cn]['msiScriptPath'][-1])[0] + '.zap']
             self.__mkdn_p(','.join(obj_dn.split(',')[1:]))
+            ldap_config[cn] = dict_to_bytes(ldap_config[cn])
             try:
                 self.l.add_s(obj_dn, addlist(ldap_config[cn]))
             except Exception as e:
@@ -258,12 +282,12 @@ class GPOConnection(GPConnection):
                 else:
                     sys.stderr.write(e.args[-1]['info'])
 
-            if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == '.zap':
+            if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == b'.zap':
                 inf_conf = self.__parse_inf(ldap_config[cn]['msiFileList'][-1])
                 if not inf_conf.has_section('Application'):
                     inf_conf.add_section('Application')
-                inf_conf.set('Application', 'FriendlyName', ldap_config[cn]['displayName'][-1])
-                inf_conf.set('Application', 'SetupCommand', 'rpm -i "%s"' % ldap_config[cn]['msiScriptPath'][-1])
+                inf_conf.set('Application', 'FriendlyName', ldap_config[cn]['displayName'][-1].decode('utf-8'))
+                inf_conf.set('Application', 'SetupCommand', 'rpm -i "%s"' % ldap_config[cn]['msiScriptPath'][-1].decode('utf-8'))
                 self.__write_inf(ldap_config[cn]['msiFileList'][-1], inf_conf)
 
     def __parse_inf(self, filename):
@@ -275,10 +299,13 @@ class GPOConnection(GPConnection):
                 sys.stderr.write(str(e))
                 policy = ''
             inf_conf.optionxform=str
-            try:
-                inf_conf.readfp(StringIO(policy.decode('utf-8')))
-            except:
-                inf_conf.readfp(StringIO(policy.decode('utf-16')))
+            if type(policy) is str:
+                inf_conf.readfp(StringIO(policy))
+            else:
+                try:
+                    inf_conf.readfp(StringIO(policy.decode('utf-8')))
+                except:
+                    inf_conf.readfp(StringIO(policy.decode('utf-16')))
         return inf_conf
 
     def __parse_xml(self, filename):
@@ -311,9 +338,13 @@ class GPOConnection(GPConnection):
                 print(e.args[1])
 
     def __write(self, filename, text):
+        if type(filename) is bytes:
+            filename = filename.decode('utf-8')
         path = '\\'.join([self.path, filename])
         filedir = os.path.dirname((path).replace('\\', '/')).replace('/', '\\')
         self.__smb_mkdir_p(filedir)
+        if type(text) is str:
+            text = text.encode('utf-8')
         try:
             self.conn.savefile(path, text)
         except Exception as e:
@@ -329,15 +360,17 @@ class GPOConnection(GPConnection):
         self.__write(filename, value)
 
     def __write_xml(self, filename, xml_config):
-        value = '<?xml version="1.0" encoding="utf-8"?>\r\n' + etree.tostring(xml_config, 'utf-8')
+        value = '<?xml version="1.0" encoding="utf-8"?>\r\n' + etree.tostring(xml_config, 'utf-8').decode('utf-8')
         self.__write(filename, value)
 
     def upload_file(self, local, remote_dir):
         remote_path = '\\'.join([self.path, remote_dir])
         self.__smb_mkdir_p(remote_path)
         if os.path.exists(local):
-            value = open(local).read()
+            value = open_bytes(local).read()
             filename = '\\'.join([remote_path, os.path.basename(local)])
+            if type(value) is str:
+                value = value.encode('utf-8')
             try:
                 self.conn.savefile(filename, value)
             except Exception as e:

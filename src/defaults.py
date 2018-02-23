@@ -17,12 +17,12 @@ def select_script(title, policy, conn):
 
 def query_rpm(filename):
     out,_ = Popen(['rpm', '-qip', filename], stdout=PIPE, stderr=PIPE).communicate()
-    return {line.split(':')[0].strip() : ':'.join(line.split(':')[1:]).strip() for line in out.strip().split('\n')}
+    return {line.split(b':')[0].strip() : b':'.join(line.split(b':')[1:]).strip() for line in out.strip().split(b'\n')}
 
 def select_exec(title, policy, conn):
     full_path = UI.AskForExistingFile('/', '*.rpm', title)
     rpm_data = query_rpm(full_path)
-    others = {'Name' : rpm_data['Name'], 'Version': rpm_data['Release']}
+    others = {'Name' : rpm_data[b'Name'], 'Version': rpm_data[b'Release']}
     path = '%s\\%s' % (conn.path_start, conn.upload_file(full_path, 'MACHINE\\Applications'))
     return (others, path)
 
