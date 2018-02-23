@@ -288,7 +288,8 @@ class GPOConnection(GPConnection):
                     inf_conf.add_section('Application')
                 inf_conf.set('Application', 'FriendlyName', ldap_config[cn]['displayName'][-1].decode('utf-8'))
                 inf_conf.set('Application', 'SetupCommand', 'rpm -i "%s"' % ldap_config[cn]['msiScriptPath'][-1].decode('utf-8'))
-                self.__write_inf(ldap_config[cn]['msiFileList'][-1], inf_conf)
+                filename = ldap_config[cn]['msiFileList'][-1].split(self.path.encode('utf-8'))[-1]
+                self.__write_inf(filename, inf_conf)
 
     def __parse_inf(self, filename):
         inf_conf = ConfigParser()
