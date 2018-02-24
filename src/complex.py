@@ -159,7 +159,8 @@ class GPOConnection(GPConnection):
         machine_extension_versions = ''
         if ini_conf.has_option('General', 'MachineExtensionVersions'):
             machine_extension_versions = ini_conf.get('General', 'MachineExtensionVersions').encode('ascii')
-        machine_extension_versions = machine_extension_versions.decode('utf-8')
+        if type(machine_extension_versions) is bytes:
+            machine_extension_versions = machine_extension_versions.decode('utf-8')
         itr = re.finditer('\[%s:\d+]' % extension, machine_extension_versions)
         try:
             new_ext_str = machine_extension_versions[:m.start()] + machine_extension_versions[m.end():]

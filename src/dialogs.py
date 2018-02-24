@@ -245,7 +245,7 @@ class GPMC:
                 self.got_creds = self.__get_creds(creds)
 
     def __get_creds(self, creds):
-        UI.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
+        UI.OpenDialog(self.__password_prompt(creds.get_username()))
         while True:
             subret = UI.UserInput()
             if str(subret) == 'creds_ok':
@@ -261,9 +261,10 @@ class GPMC:
                 UI.CloseDialog()
                 return False
 
-    def __password_prompt(self, user, password):
+    def __password_prompt(self, user):
         return MinWidth(30, VBox(
-            Left(TextEntry(Id('username_prompt'), Opt('hstretch'), 'Username')),
+            Left(Label('To continue, type an administrator password')),
+            Left(TextEntry(Id('username_prompt'), Opt('hstretch'), 'Username', user)),
             Left(Password(Id('password_prompt'), Opt('hstretch'), 'Password')),
             Right(HBox(
                 PushButton(Id('creds_ok'), 'OK'),
