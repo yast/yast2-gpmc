@@ -230,30 +230,36 @@ class GPME:
 class GPMC:
     def __init__(self, lp, creds):
         global selected_gpo
-        self.__get_creds(creds)
         self.realm = lp.get('realm')
         self.lp = lp
         self.creds = creds
-        try:
-            self.q = GPConnection(lp, creds)
-            self.gpos = self.q.gpo_list()
-        except:
-            self.gpos = []
+        self.gpos = []
         selected_gpo = None
+        self.got_creds = self.__get_creds(creds)
+        while self.got_creds:
+            try:
+                self.q = GPConnection(lp, creds)
+                self.gpos = self.q.gpo_list()
+                break
+            except:
+                self.got_creds = self.__get_creds(creds)
 
     def __get_creds(self, creds):
-        if not creds.get_username() or not creds.get_password():
-            UI.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
-            while True:
-                subret = UI.UserInput()
-                if str(subret) == 'creds_ok':
-                    user = UI.QueryWidget('username_prompt', 'Value')
-                    password = UI.QueryWidget('password_prompt', 'Value')
-                    creds.set_username(user)
-                    creds.set_password(password)
-                if str(subret) == 'creds_cancel' or str(subret) == 'creds_ok':
-                    UI.CloseDialog()
-                    break
+        UI.OpenDialog(self.__password_prompt(creds.get_username(), creds.get_password()))
+        while True:
+            subret = UI.UserInput()
+            if str(subret) == 'creds_ok':
+                user = UI.QueryWidget('username_prompt', 'Value')
+                password = UI.QueryWidget('password_prompt', 'Value')
+                UI.CloseDialog()
+                if not password:
+                    return False
+                creds.set_username(user)
+                creds.set_password(password)
+                return True
+            if str(subret) == 'creds_cancel':
+                UI.CloseDialog()
+                return False
 
     def __password_prompt(self, user, password):
         return MinWidth(30, VBox(
@@ -276,6 +282,8 @@ class GPMC:
 
     def Show(self):
         global selected_gpo
+        if not self.got_creds:
+            return Symbol('abort')
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         Wizard.DisableBackButton()
         Wizard.DisableNextButton()
