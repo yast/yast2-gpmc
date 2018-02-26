@@ -116,6 +116,10 @@ class GPConnection:
 
         return res
 
+    def user_from_sid(self, sid, attrs=[]):
+        res = self.l.search_s(self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, attrs)
+        return res[0][1]
+
     def get_domain_sid(self):
         res = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
         return ndr_unpack(security.dom_sid, res[0][1]["objectSid"][0])

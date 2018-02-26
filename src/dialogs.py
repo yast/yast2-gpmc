@@ -6,6 +6,10 @@ import_module('UI')
 from yast import *
 import re
 from functools import cmp_to_key
+from samba.dcerpc import security
+from samba.ndr import ndr_unpack
+import samba.security
+from samba.ntacls import dsacl2fsacl
 
 selected_gpo = None
 
@@ -390,6 +394,14 @@ class GPMC:
             status_selection[0] = True
         combo_options = [Item('All settings disabled', status_selection[0]), Item('Computer configuration settings disabled', status_selection[1]), Item('Enabled', status_selection[2]), Item('User configuration settings disabled', status_selection[3])]
 
+
+        ds_sd_flags = security.SECINFO_OWNER
+        msg = self.q.gpo_list(selected_gpo[1]['displayName'][-1], attrs=['nTSecurityDescriptor'])
+        ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
+        ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr)
+        owner_obj = self.q.user_from_sid(ds_sd.owner_sid)
+        owner = owner_obj['sAMAccountName'][-1].decode('utf-8')
+
         return Top(
             HBox(
                 HWeight(1, VBox(
@@ -404,7 +416,7 @@ class GPMC:
                 )),
                 HWeight(2, VBox(
                     Left(Label(self.realm)), VSpacing(),
-                    Left(Label('Unknown')), VSpacing(),
+                    Left(Label(owner)), VSpacing(),
                     Left(Label(self.__ms_time_to_readable(selected_gpo[1]['whenCreated'][-1]))), VSpacing(),
                     Left(Label(self.__ms_time_to_readable(selected_gpo[1]['whenChanged'][-1]))), VSpacing(),
                     Left(Label('%d' % (int(selected_gpo[1]['versionNumber'][-1]) >> 16))), VSpacing(),
