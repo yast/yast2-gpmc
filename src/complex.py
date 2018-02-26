@@ -12,6 +12,11 @@ from ldap.modlist import addModlist as addlist
 from ldap.modlist import modifyModlist as modlist
 import re
 import traceback
+import ldb
+from samba.dcerpc import security
+from samba.ndr import ndr_unpack
+import samba.security
+from samba.ntacls import dsacl2fsacl
 
 def open_bytes(filename):
     if sys.version_info[0] == 3:
@@ -58,13 +63,26 @@ def stringify_ldap_results(ldap_res):
             attrs[key] = new_list
     return new_res
 
+def parse_unc(unc):
+    '''Parse UNC string into a hostname, a service, and a filepath'''
+    if unc.startswith('\\\\') and unc.startswith('//'):
+        raise ValueError("UNC doesn't start with \\\\ or //")
+    tmp = unc[2:].split('/', 2)
+    if len(tmp) == 3:
+        return tmp
+    tmp = unc[2:].split('\\', 2)
+    if len(tmp) == 3:
+        return tmp
+    raise ValueError("Invalid UNC string: %s" % unc)
+
 class GPConnection:
     def __init__(self, lp, creds):
         self.lp = lp
         self.creds = creds
-        self.realm = lp.get('realm')
         net = Net(creds=creds, lp=lp)
-        cldap_ret = net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS))
+        cldap_ret = net.finddc(domain=lp.get('realm'), flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS | nbt.NBT_SERVER_WRITABLE))
+        self.realm = cldap_ret.dns_domain
+        self.dc_hostname = cldap_ret.pdc_dns_name
         self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
         if self.__kinit_for_gssapi():
             auth_tokens = ldap.sasl.gssapi('')
@@ -98,11 +116,18 @@ class GPConnection:
 
         return res
 
-    def gpo_list(self):
+    def get_domain_sid(self):
+        res = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
+        return ndr_unpack(security.dom_sid, res[0][1]["objectSid"][0])
+
+    def gpo_list(self, displayName=None, attrs=[]):
         result = None
         try:
             res = self.__well_known_container('system')
-            result = self.l.search_s(res, ldap.SCOPE_SUBTREE, '(objectCategory=groupPolicyContainer)', [])
+            search_expr = '(objectClass=groupPolicyContainer)'
+            if displayName is not None:
+                search_expr = '(&(objectClass=groupPolicyContainer)(displayname=%s))' % ldb.binary_encode(displayName)
+            result = self.l.search_s(res, ldap.SCOPE_SUBTREE, search_expr, attrs)
             result = stringify_ldap_results(result)
         except Exception as e:
              print ("#### caught exception %s\n"%e)
@@ -113,24 +138,29 @@ class GPConnection:
         self.l.modify(dn, [(1, key, None), (0, key, value)])
 
     def create_gpo(self, displayName):
+        msg = self.gpo_list(displayName)
+        if len(msg) > 0:
+            raise Exception("A GPO already existing with name '%s'" % displayName)
+
         gpouuid = uuid.uuid4()
         realm_dn = self.realm_to_dn(self.realm)
         name = '{%s}' % str(gpouuid).upper()
         dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
-        ldap_mod = { 'displayName': [displayName], 'gPCFileSysPath': ['\\\\%s\\SysVol\\%s\\Policies\\%s' % (self.realm, self.realm, name)], 'objectClass': ['top', 'container', 'groupPolicyContainer'], 'gPCFunctionalityVersion': ['2'], 'flags': ['0'], 'versionNumber': ['0'] }
+        unc_path = "\\\\%s\\sysvol\\%s\\Policies\\%s" % (self.realm, self.realm, name)
+        ldap_mod = { 'displayName': [displayName.encode('utf-8')], 'gPCFileSysPath': [unc_path.encode('utf-8')], 'objectClass': [b'groupPolicyContainer'], 'gPCFunctionalityVersion': [b'2'], 'flags': [b'0'], 'versionNumber': [b'0'] }
         # gPCMachineExtensionNames MUST be assigned as gpos are modified (currently not doing this!)
 
         machine_dn = 'CN=Machine,%s' % dn
         user_dn = 'CN=User,%s' % dn
-        sub_ldap_mod = { 'objectClass': ['top', 'container'] }
+        sub_ldap_mod = { 'objectClass': [b'container'] }
 
-        gpo = GPOConnection(self.lp, self.creds, ldap_mod['gPCFileSysPath'][-1])
+        gpo = GPOConnection(self.lp, self.creds, unc_path)
         try:
             self.l.add_s(dn, addlist(ldap_mod))
             self.l.add_s(machine_dn, addlist(sub_ldap_mod))
             self.l.add_s(user_dn, addlist(sub_ldap_mod))
 
-            gpo.initialize_empty_gpo()
+            gpo.initialize_empty_gpo(displayName)
             # TODO: GPO links
         except Exception as e:
             print(str(e))
@@ -139,14 +169,12 @@ class GPConnection:
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
-        path_parts = [n for n in gpo_path.split('\\') if n]
-        self.path_start = '\\\\' + '\\'.join(path_parts[:2])
-        self.path = '\\'.join(path_parts[2:])
-        self.name = path_parts[-1]
+        [dom_name, service, self.path] = parse_unc(gpo_path)
+        self.name = gpo_path.split('\\')[-1]
         self.realm_dn = self.realm_to_dn(self.realm)
         self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
         try:
-            self.conn = smb.SMB(path_parts[0], path_parts[1], lp=self.lp, creds=self.creds)
+            self.conn = smb.SMB(self.dc_hostname, service, lp=self.lp, creds=self.creds)
         except Exception as e:
             print ("Exception %s"%str(e))
             traceback.print_exc(file=sys.stdout)
@@ -173,9 +201,30 @@ class GPOConnection(GPConnection):
         ini_conf.set('General', 'MachineExtensionVersions', machine_extension_versions)
         self.write('Group Policy\\GPE.INI', ini_conf)
 
-    def initialize_empty_gpo(self):
+    def initialize_empty_gpo(self, displayName):
+        # Get new security descriptor
+        ds_sd_flags = ( security.SECINFO_OWNER |
+                        security.SECINFO_GROUP |
+                        security.SECINFO_DACL )
+        msg = self.gpo_list(displayName, attrs=['nTSecurityDescriptor'])
+        ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
+        ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr).as_sddl()
+
+        # Create a file system security descriptor
+        domain_sid = self.get_domain_sid()
+        sddl = dsacl2fsacl(ds_sd, domain_sid)
+        fs_sd = security.descriptor.from_sddl(sddl, domain_sid)
+
         self.__smb_mkdir_p('\\'.join([self.path, 'MACHINE']))
         self.__smb_mkdir_p('\\'.join([self.path, 'USER']))
+
+        # Set ACL
+        sio = ( security.SECINFO_OWNER |
+                security.SECINFO_GROUP |
+                security.SECINFO_DACL |
+                security.SECINFO_PROTECTED_DACL )
+        self.conn.set_acl(self.path, fs_sd, sio)
+
         self.__increment_gpt_ini()
 
     def __get_gpo_version(self, ini_conf=None):

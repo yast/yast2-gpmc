@@ -241,7 +241,8 @@ class GPMC:
                 self.q = GPConnection(lp, creds)
                 self.gpos = self.q.gpo_list()
                 break
-            except:
+            except Exception as e:
+                print(str(e))
                 self.got_creds = self.__get_creds(creds)
 
     def __get_creds(self, creds):
