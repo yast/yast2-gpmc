@@ -11,6 +11,12 @@ from samba.ndr import ndr_unpack
 import samba.security
 from samba.ntacls import dsacl2fsacl
 
+def have_x():
+    from subprocess import Popen, PIPE
+    p = Popen(['xset', '-q'], stdout=PIPE, stderr=PIPE)
+    return p.wait() == 0
+have_advanced_gui = have_x()
+
 selected_gpo = None
 
 class GPME:
@@ -316,9 +322,14 @@ class GPMC:
             self.gpos = []
 
     def __reset(self):
+        global have_advanced_gui
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         Wizard.DisableBackButton()
         Wizard.DisableNextButton()
+        if have_advanced_gui:
+            Wizard.HideAbortButton()
+            Wizard.HideBackButton()
+            Wizard.HideNextButton()
 
     def Show(self):
         global selected_gpo
@@ -502,12 +513,17 @@ class GPMC:
         return contents
 
     def __realm(self):
-        return VBox(
-            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
-            Right(HBox(
+        global have_advanced_gui
+        if have_advanced_gui:
+            buttons = Empty()
+        else:
+            buttons = Right(HBox(
                 PushButton(Id('del_gpo'), 'Delete GPO'),
                 PushButton(Id('add_gpo'), 'Create a GPO')
-            )),
+            ))
+        return VBox(
+            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
+            buttons,
         )
 
     def __realm_links(self):
