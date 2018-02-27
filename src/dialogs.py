@@ -319,7 +319,23 @@ class GPMC:
                     except:
                         self.gpos = []
                     Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                    UI.ReplaceWidget('rightPane', self.__realm())
+                    current_page = 'Realm'
                     break
+            elif str(ret) == 'del_gpo':
+                displayName = UI.QueryWidget('link_order', 'CurrentItem')
+                UI.OpenDialog(self.__request_delete_gpo())
+                sret = UI.UserInput()
+                if str(sret) == 'delete_gpo':
+                    self.q.delete_gpo(displayName)
+                UI.CloseDialog()
+                try:
+                    self.gpos = self.q.gpo_list()
+                except:
+                    self.gpos = []
+                Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                UI.ReplaceWidget('rightPane', self.__realm())
+                current_page = 'Realm'
             elif UI.HasSpecialWidget('DumbTab'):
                 if gpo_guid == 'Domains':
                     if current_page != None:
@@ -367,6 +383,15 @@ class GPMC:
             Right(HBox(
                 PushButton(Id('ok_name_gpo'), 'OK'),
                 PushButton(Id('cancel_name_gpo'), 'Cancel')
+            ))
+        ))
+
+    def __request_delete_gpo(self):
+        return MinWidth(30, VBox(
+            Label('Do you want to delete this GPO and all links to it in this domain?'),
+            Right(HBox(
+                PushButton(Id('delete_gpo'), 'Yes'),
+                PushButton(Id('cancel_delete_gpo'), 'No'),
             ))
         ))
 
@@ -445,7 +470,10 @@ class GPMC:
     def __realm(self):
         return VBox(
             Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
-            Right(HBox(PushButton(Id('add_gpo'), 'Create a GPO'))),
+            Right(HBox(
+                PushButton(Id('del_gpo'), 'Delete GPO'),
+                PushButton(Id('add_gpo'), 'Create a GPO')
+            )),
         )
 
     def __realm_links(self):

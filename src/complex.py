@@ -170,6 +170,29 @@ class GPConnection:
             print(str(e))
             traceback.print_exc(file=sys.stdout)
 
+    def delete_gpo(self, displayName):
+        msg = self.gpo_list(displayName)
+        if len(msg) == 0:
+            raise Exception("GPO '%s' does not exist" % displayName)
+
+        unc_path = msg[0][1]['gPCFileSysPath'][0]
+
+        # Remove links before deleting...
+
+        # Remove LDAP entries
+        gpo_dn = msg[0][1]['distinguishedName'][0]
+        try:
+            self.l.delete_s("CN=User,%s" % str(gpo_dn))
+            self.l.delete_s("CN=Machine,%s" % str(gpo_dn))
+            self.l.delete_s(gpo_dn)
+
+            # Remove GPO files
+            gpo = GPOConnection(self.lp, self.creds, unc_path)
+            gpo.cleanup_gpo()
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc(file=sys.stdout)
+
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
@@ -230,6 +253,9 @@ class GPOConnection(GPConnection):
         self.conn.set_acl(self.path, fs_sd, sio)
 
         self.__increment_gpt_ini()
+
+    def cleanup_gpo(self):
+        self.conn.deltree(self.path)
 
     def __get_gpo_version(self, ini_conf=None):
         if not ini_conf:
