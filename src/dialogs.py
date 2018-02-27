@@ -247,24 +247,27 @@ class GPMC:
                 break
             except Exception as e:
                 print(str(e))
+                creds.set_password('')
                 self.got_creds = self.__get_creds(creds)
 
     def __get_creds(self, creds):
-        UI.OpenDialog(self.__password_prompt(creds.get_username()))
-        while True:
-            subret = UI.UserInput()
-            if str(subret) == 'creds_ok':
-                user = UI.QueryWidget('username_prompt', 'Value')
-                password = UI.QueryWidget('password_prompt', 'Value')
-                UI.CloseDialog()
-                if not password:
+        if not creds.get_password():
+            UI.OpenDialog(self.__password_prompt(creds.get_username()))
+            while True:
+                subret = UI.UserInput()
+                if str(subret) == 'creds_ok':
+                    user = UI.QueryWidget('username_prompt', 'Value')
+                    password = UI.QueryWidget('password_prompt', 'Value')
+                    UI.CloseDialog()
+                    if not password:
+                        return False
+                    creds.set_username(user)
+                    creds.set_password(password)
+                    return True
+                if str(subret) == 'creds_cancel':
+                    UI.CloseDialog()
                     return False
-                creds.set_username(user)
-                creds.set_password(password)
-                return True
-            if str(subret) == 'creds_cancel':
-                UI.CloseDialog()
-                return False
+        return True
 
     def __password_prompt(self, user):
         return MinWidth(30, VBox(
