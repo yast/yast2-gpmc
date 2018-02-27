@@ -289,6 +289,32 @@ class GPMC:
                 break
         return selected_gpo
 
+    def add_gpo(self):
+        UI.OpenDialog(self.__name_gpo())
+        sret = UI.UserInput()
+        if str(sret) == 'ok_name_gpo':
+            gpo_name = UI.QueryWidget('gpo_name_entry', 'Value')
+            self.q.create_gpo(gpo_name)
+        UI.CloseDialog()
+        try:
+            self.gpos = self.q.gpo_list()
+        except:
+            self.gpos = []
+        Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+        UI.ReplaceWidget('rightPane', self.__realm())
+        return 'Realm'
+
+    def del_gpo(self, displayName):
+        UI.OpenDialog(self.__request_delete_gpo())
+        sret = UI.UserInput()
+        if str(sret) == 'delete_gpo':
+            self.q.delete_gpo(displayName)
+        UI.CloseDialog()
+        try:
+            self.gpos = self.q.gpo_list()
+        except:
+            self.gpos = []
+
     def Show(self):
         global selected_gpo
         if not self.got_creds:
@@ -302,7 +328,13 @@ class GPMC:
         old_gpo_guid = None
         gpo_guid = None
         while True:
-            ret = UI.UserInput()
+            event = UI.WaitForEvent()
+            if 'WidgetID' in event:
+                ret = event['WidgetID']
+            elif 'ID' in event:
+                ret = event['ID']
+            else:
+                raise Exception('ID not found in response %s' % str(event))
             old_gpo_guid = gpo_guid
             gpo_guid = UI.QueryWidget('gpmc_tree', 'CurrentItem')
             if str(ret) in ['back', 'abort']:
@@ -310,35 +342,25 @@ class GPMC:
             elif str(ret) == 'next':
                 break
             elif str(ret) == 'add_gpo':
-                UI.OpenDialog(self.__name_gpo())
-                while True:
-                    sret = UI.UserInput()
-                    if str(sret) == 'ok_name_gpo':
-                        gpo_name = UI.QueryWidget('gpo_name_entry', 'Value')
-                        self.q.create_gpo(gpo_name)
-                    UI.CloseDialog()
-                    try:
-                        self.gpos = self.q.gpo_list()
-                    except:
-                        self.gpos = []
-                    Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
-                    UI.ReplaceWidget('rightPane', self.__realm())
-                    current_page = 'Realm'
-                    break
+                current_page = self.add_gpo()
             elif str(ret) == 'del_gpo':
-                displayName = UI.QueryWidget('link_order', 'CurrentItem')
-                UI.OpenDialog(self.__request_delete_gpo())
-                sret = UI.UserInput()
-                if str(sret) == 'delete_gpo':
-                    self.q.delete_gpo(displayName)
-                UI.CloseDialog()
-                try:
-                    self.gpos = self.q.gpo_list()
-                except:
-                    self.gpos = []
+                self.del_gpo(UI.QueryWidget('link_order', 'CurrentItem'))
                 Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
                 UI.ReplaceWidget('rightPane', self.__realm())
                 current_page = 'Realm'
+            elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
+                if gpo_guid != 'Domains' and gpo_guid != self.realm:
+                    UI.OpenContextMenu(self.__gpo_context_menu())
+            elif ret == 'edit_gpo':
+                selected_gpo = self.__select_gpo(gpo_guid)
+                ret = 'next'
+                break
+            elif ret == 'context_del_gpo':
+                selected_gpo = self.__select_gpo(gpo_guid)
+                current_page = self.del_gpo(selected_gpo[1]['displayName'][-1])
+                Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                UI.ReplaceWidget('rightPane', Empty())
+                current_page = None
             elif UI.HasSpecialWidget('DumbTab'):
                 if gpo_guid == 'Domains':
                     if current_page != None:
@@ -379,6 +401,12 @@ class GPMC:
                             self.q.set_attr(selected_gpo[0], 'flags', ['1'])
 
         return Symbol(ret)
+
+    def __gpo_context_menu(self):
+        return Term('menu', [
+            Item(Id('edit_gpo'), 'Edit...'),
+            Item(Id('context_del_gpo'), 'Delete')
+        ])
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
@@ -466,7 +494,7 @@ class GPMC:
         for gpo in self.gpos:
             items.append(Item(Id(gpo[1]['name'][-1]), gpo[1]['displayName'][-1]))
         forest = [Item('Domains', True, [Item(self.realm, True, items)])]
-        contents = Tree(Id('gpmc_tree'), Opt('notify'), 'Group Policy Management', forest)
+        contents = Tree(Id('gpmc_tree'), Opt('notify', 'immediate', 'notifyContextMenu'), 'Group Policy Management', forest)
         
         return contents
 
