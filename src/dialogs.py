@@ -24,17 +24,27 @@ class GPME:
         global selected_gpo
         self.conn = GPOConnection(lp, creds, selected_gpo[1]['gPCFileSysPath'][-1])
 
+    def __reset(self):
+        global have_advanced_gui
+        Wizard.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', '', 'Close')
+        if have_advanced_gui:
+            Wizard.HideNextButton()
+        else:
+            Wizard.RestoreNextButton()
+            Wizard.HideAbortButton()
+            Wizard.HideBackButton()
+
     def Show(self):
         if not self.conn:
             return Symbol('back')
-        Wizard.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', 'Back', 'Close')
-        Wizard.DisableAbortButton()
+        self.__reset()
         UI.SetFocus('gpme_tree')
 
         policy = None
         while True:
             ret = UI.UserInput()
             if str(ret) in ['back', 'abort', 'next', 'cancel']:
+                ret = 'back'
                 break
             elif str(ret) == 'gpme_tree':
                 policy = UI.QueryWidget('gpme_tree', 'CurrentItem')
@@ -321,12 +331,14 @@ class GPMC:
     def __reset(self):
         global have_advanced_gui
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
-        Wizard.DisableBackButton()
-        Wizard.DisableNextButton()
         if have_advanced_gui:
             Wizard.HideAbortButton()
             Wizard.HideBackButton()
             Wizard.HideNextButton()
+        else:
+            Wizard.DisableBackButton()
+            Wizard.DisableNextButton()
+            Wizard.RestoreAbortButton()
 
     def Show(self):
         global selected_gpo
