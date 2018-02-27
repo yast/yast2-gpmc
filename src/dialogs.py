@@ -28,7 +28,7 @@ class GPME:
         policy = None
         while True:
             ret = UI.UserInput()
-            if str(ret) in ['back', 'abort', 'next']:
+            if str(ret) in ['back', 'abort', 'next', 'cancel']:
                 break
             elif str(ret) == 'gpme_tree':
                 policy = UI.QueryWidget('gpme_tree', 'CurrentItem')
@@ -300,7 +300,7 @@ class GPMC:
             self.gpos = self.q.gpo_list()
         except:
             self.gpos = []
-        Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+        self.__reset()
         UI.ReplaceWidget('rightPane', self.__realm())
         return 'Realm'
 
@@ -315,13 +315,16 @@ class GPMC:
         except:
             self.gpos = []
 
+    def __reset(self):
+        Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+        Wizard.DisableBackButton()
+        Wizard.DisableNextButton()
+
     def Show(self):
         global selected_gpo
         if not self.got_creds:
             return Symbol('abort')
-        Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
-        Wizard.DisableBackButton()
-        Wizard.DisableNextButton()
+        self.__reset()
         UI.SetFocus('gpmc_tree')
 
         current_page = 'Domains'
@@ -337,7 +340,7 @@ class GPMC:
                 raise Exception('ID not found in response %s' % str(event))
             old_gpo_guid = gpo_guid
             gpo_guid = UI.QueryWidget('gpmc_tree', 'CurrentItem')
-            if str(ret) in ['back', 'abort']:
+            if str(ret) in ['back', 'abort', 'cancel']:
                 break
             elif str(ret) == 'next':
                 break
@@ -345,7 +348,7 @@ class GPMC:
                 current_page = self.add_gpo()
             elif str(ret) == 'del_gpo':
                 self.del_gpo(UI.QueryWidget('link_order', 'CurrentItem'))
-                Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                self.__reset()
                 UI.ReplaceWidget('rightPane', self.__realm())
                 current_page = 'Realm'
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
@@ -358,7 +361,7 @@ class GPMC:
             elif ret == 'context_del_gpo':
                 selected_gpo = self.__select_gpo(gpo_guid)
                 current_page = self.del_gpo(selected_gpo[1]['displayName'][-1])
-                Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
+                self.__reset()
                 UI.ReplaceWidget('rightPane', Empty())
                 current_page = None
             elif UI.HasSpecialWidget('DumbTab'):
