@@ -417,6 +417,12 @@ class GPMC:
                         Wizard.DisableNextButton()
                         UI.ReplaceWidget('rightPane', self.__realm())
                         current_page = 'Realm'
+                    if ret == 'Linked Group Policy Objects':
+                        UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_links())
+                    elif ret == 'Delegation':
+                        UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_delegation())
+                    elif ret == 'Group Policy Inheritance':
+                        UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_inheritance())
                 elif gpo_guid == 'Group Policy Objects':
                     if current_page != 'Group Policy Objects':
                         Wizard.DisableNextButton()
@@ -550,10 +556,10 @@ class GPMC:
         )
 
     def __settings_page(self):
-        return Empty()
+        return Top(HBox(Empty()))
 
     def __delegation_page(self):
-        return Empty()
+        return Top(HBox(Empty()))
 
     def __forest(self):
         items = []
@@ -586,6 +592,12 @@ class GPMC:
             buttons,
         )
 
+    def __realm_delegation(self):
+        return Top(HBox(Empty()))
+
+    def __realm_inheritance(self):
+        return Top(HBox(Empty()))
+
     def __realm_links(self):
         header = Header('Link Order', 'GPO', 'Enforced', 'Link Enabled', 'GPO Status', 'WMI Filter', 'Modified', 'Domain')
         contents = []
@@ -607,7 +619,12 @@ class GPMC:
     def __gpo_tab(self, gpo_guid):
         global selected_gpo
         gpo_name = selected_gpo[1]['displayName'][-1]
-        return Frame(gpo_name, DumbTab(Id('gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Id('gpo_tabContents'), self.__scope_page(gpo_guid))))
+        return Frame(gpo_name, DumbTab(Id('gpo_tab'), [
+            'Scope',
+            Item('Details', True),
+            'Settings',
+            'Delegation'
+        ], ReplacePoint(Id('gpo_tabContents'), self.__details_page(gpo_guid))))
 
     def __gpmc_page(self):
         return HBox(
