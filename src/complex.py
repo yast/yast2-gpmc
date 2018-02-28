@@ -75,6 +75,27 @@ def parse_unc(unc):
         return tmp
     raise ValueError("Invalid UNC string: %s" % unc)
 
+def dn_to_path(realm, dn):
+    base_dn = (','.join(['DC=%s' % part for part in realm.lower().split('.')])).encode('utf-8')
+    parts = [p.split(b'=')[-1].title() for p in dn.lower().replace(base_dn.lower(), b'').split(b',') if p]
+    parts.append(realm.encode('utf-8'))
+    return b'/'.join(reversed(parts))
+
+def parse_gplink(gplink):
+    '''parse a gPLink into an array of dn and options'''
+    ret = {}
+    a = gplink.split(b']')
+    for g in a:
+        if not g:
+            continue
+        d = g.split(b';')
+        if len(d) != 2 or not d[0].startswith(b"[LDAP://"):
+            raise RuntimeError("Badly formed gPLink '%s'" % g)
+        options = bin(int(d[1]))[2:].zfill(2)
+        name = d[0][8:].split(b',')[0][3:].decode()
+        ret[name] = {'enforced' : 'Yes' if int(options[-2]) else 'No', 'enabled' : 'No' if int(options[-1]) else 'Yes'}
+    return ret
+
 class GPConnection:
     def __init__(self, lp, creds):
         self.lp = lp

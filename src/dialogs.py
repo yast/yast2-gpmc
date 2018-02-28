@@ -1,5 +1,5 @@
 from defaults import Policies, fetch_inf_value
-from complex import GPConnection, GPOConnection
+from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink
 from yast import import_module
 import_module('Wizard')
 import_module('UI')
@@ -18,12 +18,6 @@ def have_x():
 have_advanced_gui = have_x()
 
 selected_gpo = None
-
-def dn_to_path(realm, dn):
-    base_dn = (','.join(['DC=%s' % part for part in realm.lower().split('.')])).encode('utf-8')
-    parts = [p.split(b'=')[-1].title() for p in dn.lower().replace(base_dn.lower(), b'').split(b',') if p]
-    parts.append(realm.encode('utf-8'))
-    return b'/'.join(reversed(parts))
 
 class GPME:
     def __init__(self, lp, creds):
@@ -496,7 +490,8 @@ class GPMC:
                 name = self.realm.lower()
             else:
                 name = link['name'][-1]
-            vals = Item(name, '', '', dn_to_path(self.realm.lower(), link['distinguishedName'][-1]))
+            gplist = parse_gplink(link['gPLink'][-1])[gpo_guid]
+            vals = Item(name, str(gplist['enforced']), str(gplist['enabled']), dn_to_path(self.realm.lower(), link['distinguishedName'][-1]))
             contents.append(vals)
         return VBox(
             Left(Label('Links')),
