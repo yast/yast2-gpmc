@@ -588,7 +588,11 @@ class GPMC:
                 PushButton(Id('add_gpo'), 'Create a GPO')
             ))
         return VBox(
-            Frame(self.realm, DumbTab(['Linked Group Policy Objects', 'Group Policy Inheritance', 'Delegation'], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
+            Frame(self.realm, DumbTab([
+                'Linked Group Policy Objects',
+                #'Group Policy Inheritance',
+                #'Delegation'
+            ], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
             buttons,
         )
 
@@ -622,8 +626,8 @@ class GPMC:
         return Frame(gpo_name, DumbTab(Id('gpo_tab'), [
             'Scope',
             Item('Details', True),
-            'Settings',
-            'Delegation'
+            #'Settings',
+            #'Delegation'
         ], ReplacePoint(Id('gpo_tabContents'), self.__details_page(gpo_guid))))
 
     def __gpmc_page(self):
