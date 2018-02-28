@@ -19,6 +19,12 @@ have_advanced_gui = have_x()
 
 selected_gpo = None
 
+def dn_to_path(realm, dn):
+    base_dn = (','.join(['DC=%s' % part for part in realm.lower().split('.')])).encode('utf-8')
+    parts = [p.split(b'=')[-1].title() for p in dn.lower().replace(base_dn.lower(), b'').split(b',') if p]
+    parts.append(realm.encode('utf-8'))
+    return b'/'.join(reversed(parts))
+
 class GPME:
     def __init__(self, lp, creds):
         global selected_gpo
@@ -249,12 +255,17 @@ class GPME:
 
 class GPMC:
     def __init__(self, lp, creds):
-        global selected_gpo
+        global selected_gpo, have_advanced_gui
         self.realm = lp.get('realm')
         self.lp = lp
         self.creds = creds
         self.gpos = []
         selected_gpo = None
+        self.__setup_menus()
+        if have_advanced_gui:
+            Wizard.HideAbortButton()
+            Wizard.HideBackButton()
+            Wizard.HideNextButton()
         self.got_creds = self.__get_creds(creds)
         while self.got_creds:
             try:
@@ -265,6 +276,11 @@ class GPMC:
                 print(str(e))
                 creds.set_password('')
                 self.got_creds = self.__get_creds(creds)
+
+    def __setup_menus(self):
+        UI.WizardCommand(Term('DeleteMenus'))
+        UI.WizardCommand(Term('AddMenu', '&File', 'file-menu'))
+        UI.WizardCommand(Term('AddMenuEntry', 'file-menu', 'Close', 'abort'))
 
     def __get_creds(self, creds):
         if not creds.get_password():
@@ -336,6 +352,8 @@ class GPMC:
             Wizard.HideBackButton()
             Wizard.HideNextButton()
         else:
+            Wizard.RestoreBackButton()
+            Wizard.RestoreNextButton()
             Wizard.DisableBackButton()
             Wizard.DisableNextButton()
             Wizard.RestoreAbortButton()
@@ -411,16 +429,13 @@ class GPMC:
                         UI.ReplaceWidget('rightPane', Empty())
                         current_page = 'Group Policy Objects'
                 else:
-                    if str(ret) == 'advanced':
-                        self.__gpo_tab_adv(gpo_guid)
-                        continue
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         Wizard.EnableNextButton()
                         selected_gpo = self.__select_gpo(gpo_guid)
                         UI.ReplaceWidget('rightPane', self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
                     if str(ret) == 'Scope':
-                        UI.ReplaceWidget('gpo_tabContents', self.__scope_page())
+                        UI.ReplaceWidget('gpo_tabContents', self.__scope_page(gpo_guid))
                     elif str(ret) == 'Details':
                         UI.ReplaceWidget('gpo_tabContents', self.__details_page(gpo_guid))
                     elif str(ret) == 'Settings':
@@ -472,8 +487,21 @@ class GPMC:
     def __help(self):
         return 'Group Policy Management Console'
 
-    def __scope_page(self):
-        return RichText('Contents of the scope page')
+    def __scope_page(self, gpo_guid):
+        header = Header('Location', 'Enforced', 'Link Enabled', 'Path')
+        contents = []
+        links = self.q.get_gpo_containers(gpo_guid)
+        for link in links:
+            if b'domain' in link['objectClass']:
+                name = self.realm.lower()
+            else:
+                name = link['name'][-1]
+            vals = Item(name, '', '', dn_to_path(self.realm.lower(), link['distinguishedName'][-1]))
+            contents.append(vals)
+        return VBox(
+            Left(Label('Links')),
+            Table(Id('scope_links'), header, contents)
+        )
 
     def __ms_time_to_readable(self, timestamp):
         m = re.match('(?P<year>\d\d\d\d)(?P<month>\d\d)(?P<day>\d\d)(?P<hour>\d\d)(?P<minute>\d\d)(?P<second>\d\d)\..*', timestamp)
@@ -527,10 +555,10 @@ class GPMC:
         )
 
     def __settings_page(self):
-        return RichText('Contents of the settings page')
+        return Empty()
 
     def __delegation_page(self):
-        return RichText('Contents of the delegation page')
+        return Empty()
 
     def __forest(self):
         items = []
@@ -584,10 +612,7 @@ class GPMC:
     def __gpo_tab(self, gpo_guid):
         global selected_gpo
         gpo_name = selected_gpo[1]['displayName'][-1]
-        return Frame(gpo_name, ReplacePoint(Id('gpo_tabContainer'), VBox(self.__details_page(gpo_guid), Right(PushButton(Id('advanced'), 'Advanced')))))
-
-    def __gpo_tab_adv(self, gpo_guid):
-        UI.ReplaceWidget('gpo_tabContainer', DumbTab(Id('gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Id('gpo_tabContents'), self.__scope_page())))
+        return Frame(gpo_name, DumbTab(Id('gpo_tab'), ['Scope', 'Details', 'Settings', 'Delegation'], ReplacePoint(Id('gpo_tabContents'), self.__scope_page(gpo_guid))))
 
     def __gpmc_page(self):
         return HBox(

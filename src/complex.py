@@ -89,6 +89,7 @@ class GPConnection:
             self.l.sasl_interactive_bind_s('', auth_tokens)
         else:
             self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
+        self.l.set_option(ldap.OPT_REFERRALS,0)
 
     def __kinit_for_gssapi(self):
         p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
@@ -192,6 +193,17 @@ class GPConnection:
         except Exception as e:
             print(str(e))
             traceback.print_exc(file=sys.stdout)
+
+    def get_gpo_containers(self, gpo):
+        '''lists dn of containers for a GPO'''
+
+        search_expr = "(&(objectClass=*)(gPLink=*%s*))" % gpo
+        try:
+            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        except Exception as e:
+            raise Exception("Could not find container(s) with GPO %s" % gpo, e)
+
+        return [res[1] for res in msg if type(res[1]) is dict]
 
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
