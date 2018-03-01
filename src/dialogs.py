@@ -306,14 +306,13 @@ class GPMC:
             ))
         ))
 
-    def __select_gpo(self, gpo_guid):
-        global selected_gpo
-        selected_gpo = None
+    def __find_gpo(self, gpo_guid):
+        fgpo = None
         for gpo in self.gpos:
             if gpo[1]['name'][-1] == gpo_guid:
-                selected_gpo = gpo
+                fgpo = gpo
                 break
-        return selected_gpo
+        return fgpo
 
     def add_gpo(self):
         UI.OpenDialog(self.__name_gpo())
@@ -389,14 +388,16 @@ class GPMC:
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
                 if gpo_guid == 'Group Policy Objects':
                     UI.OpenContextMenu(self.__objs_context_menu())
-                elif gpo_guid != 'Domains' and gpo_guid != self.realm:
+                elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):# and gpo_guid != self.realm:
                     UI.OpenContextMenu(self.__gpo_context_menu())
+                elif gpo_guid != 'Domains':
+                    UI.OpenContextMenu(self.__objs_context_menu(gpo_guid))
             elif ret == 'edit_gpo':
-                selected_gpo = self.__select_gpo(gpo_guid)
+                selected_gpo = self.__find_gpo(gpo_guid)
                 ret = 'next'
                 break
             elif ret == 'context_del_gpo':
-                selected_gpo = self.__select_gpo(gpo_guid)
+                selected_gpo = self.__find_gpo(gpo_guid)
                 current_page = self.del_gpo(selected_gpo[1]['displayName'][-1])
                 self.__reset()
                 UI.ReplaceWidget('rightPane', Empty())
@@ -431,7 +432,7 @@ class GPMC:
                 else:
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         Wizard.EnableNextButton()
-                        selected_gpo = self.__select_gpo(gpo_guid)
+                        selected_gpo = self.__find_gpo(gpo_guid)
                         UI.ReplaceWidget('rightPane', self.__gpo_tab(gpo_guid))
                         current_page = 'Dumbtab'
                     if str(ret) == 'Scope':
@@ -461,10 +462,15 @@ class GPMC:
             Item(Id('context_del_gpo'), 'Delete')
         ])
 
-    def __objs_context_menu(self):
-        return Term('menu', [
-            Item(Id('context_add_gpo'), 'New')
-        ])
+    def __objs_context_menu(self, container=None):
+        if container:
+            return Term('menu', [
+                Item(Id('context_add_gpo_and_link'), 'Create a GPO in this domain, and Link it here...')
+            ])
+        else:
+            return Term('menu', [
+                Item(Id('context_add_gpo'), 'New')
+            ])
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
@@ -523,12 +529,14 @@ class GPMC:
         combo_options = [Item('All settings disabled', status_selection[0]), Item('Computer configuration settings disabled', status_selection[1]), Item('Enabled', status_selection[2]), Item('User configuration settings disabled', status_selection[3])]
 
 
-        ds_sd_flags = security.SECINFO_OWNER
         msg = self.q.gpo_list(selected_gpo[1]['displayName'][-1], attrs=['nTSecurityDescriptor'])
-        ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
-        ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr)
-        owner_obj = self.q.user_from_sid(ds_sd.owner_sid)
-        owner = owner_obj['sAMAccountName'][-1].decode('utf-8')
+        if msg:
+            ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
+            ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr)
+            owner_obj = self.q.user_from_sid(ds_sd.owner_sid)
+            owner = owner_obj['sAMAccountName'][-1].decode('utf-8')
+        else:
+            owner = 'Unknown'
 
         return Top(
             HBox(
@@ -562,16 +570,31 @@ class GPMC:
         return Top(HBox(Empty()))
 
     def __forest(self):
+        gp_containers = self.q.get_containers_with_gpos()
         items = []
         for gpo in self.gpos:
             items.append(Item(Id(gpo[1]['name'][-1]), gpo[1]['displayName'][-1]))
+        folders = []
+        for container in gp_containers:
+            if b'domain' in container['objectClass']:
+                gplists = parse_gplink(container['gPLink'][-1])
+                for gpname in gplists:
+                    gpo = self.__find_gpo(gpname)
+                    displayName = gpo[1]['displayName'][-1] if gpo else gpname
+                    folders.append(Item(Id(gpname), displayName))
+            else:
+                container_objs = []
+                gplists = parse_gplink(container['gPLink'][-1])
+                for gpname in gplists:
+                    gpo = self.__find_gpo(gpname)
+                    displayName = gpo[1]['displayName'][-1] if gpo else gpname
+                    container_objs.append(Item(Id(gpname), displayName))
+                folders.append(Item(container['name'][-1], True, container_objs))
+        folders.append(Item('Group Policy Objects', True, items))
         forest = [
             Item('Domains', True,
             [
-                Item(self.realm, True,
-                [
-                    Item('Group Policy Objects', True, items)
-                ])
+                Item(self.realm, True, folders)
             ])
         ]
         contents = Tree(Id('gpmc_tree'), Opt('notify', 'immediate', 'notifyContextMenu'), 'Group Policy Management', forest)
@@ -622,6 +645,8 @@ class GPMC:
 
     def __gpo_tab(self, gpo_guid):
         global selected_gpo
+        if not selected_gpo:
+            return Top(HBox(Empty()))
         gpo_name = selected_gpo[1]['displayName'][-1]
         return Frame(gpo_name, DumbTab(Id('gpo_tab'), [
             'Scope',

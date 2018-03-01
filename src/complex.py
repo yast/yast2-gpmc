@@ -226,6 +226,15 @@ class GPConnection:
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
+    def get_containers_with_gpos(self):
+        search_expr = "(&(objectClass=*)(gPLink=*))"
+        try:
+            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        except Exception as e:
+            raise Exception("Could not find container(s) with GPO %s" % gpo, e)
+
+        return [res[1] for res in msg if type(res[1]) is dict]
+
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
@@ -493,4 +502,3 @@ class GPOConnection(GPConnection):
                 else:
                     sys.stderr.write(e.args[1])
             return filename
-
