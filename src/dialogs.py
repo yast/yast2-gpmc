@@ -315,12 +315,12 @@ class GPMC:
                 break
         return fgpo
 
-    def add_gpo(self):
+    def add_gpo(self, container=None):
         UI.OpenDialog(self.__name_gpo())
         sret = UI.UserInput()
         if str(sret) == 'ok_name_gpo':
             gpo_name = UI.QueryWidget('gpo_name_entry', 'Value')
-            self.q.create_gpo(gpo_name)
+            self.q.create_gpo(gpo_name, container)
         UI.CloseDialog()
         try:
             self.gpos = self.q.gpo_list()
@@ -390,7 +390,7 @@ class GPMC:
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
                 if gpo_guid == 'Group Policy Objects':
                     UI.OpenContextMenu(self.__objs_context_menu())
-                elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):# and gpo_guid != self.realm:
+                elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):
                     UI.OpenContextMenu(self.__gpo_context_menu())
                 elif gpo_guid != 'Domains':
                     UI.OpenContextMenu(self.__objs_context_menu(gpo_guid))
@@ -406,6 +406,11 @@ class GPMC:
                 current_page = None
             elif ret == 'context_add_gpo':
                 self.add_gpo()
+                self.__reset()
+                UI.ReplaceWidget('rightPane', Empty())
+                current_page = None
+            elif ret == 'context_add_gpo_and_link':
+                self.add_gpo(gpo_guid)
                 self.__reset()
                 UI.ReplaceWidget('rightPane', Empty())
                 current_page = None
@@ -591,7 +596,7 @@ class GPMC:
                     gpo = self.__find_gpo(gpname)
                     displayName = gpo[1]['displayName'][-1] if gpo else gpname
                     container_objs.append(Item(Id(gpname), displayName))
-                folders.append(Item(container['name'][-1], True, container_objs))
+                folders.append(Item(Id(container['distinguishedName'][-1]), container['name'][-1], True, container_objs))
         folders.append(Item('Group Policy Objects', True, items))
         forest = [
             Item('Domains', True,

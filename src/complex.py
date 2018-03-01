@@ -93,7 +93,14 @@ def parse_gplink(gplink):
             raise RuntimeError("Badly formed gPLink '%s'" % g)
         options = bin(int(d[1]))[2:].zfill(2)
         name = d[0][8:].split(b',')[0][3:].decode()
-        ret[name] = {'enforced' : 'Yes' if int(options[-2]) else 'No', 'enabled' : 'No' if int(options[-1]) else 'Yes'}
+        ret[name] = {'enforced' : 'Yes' if int(options[-2]) else 'No', 'enabled' : 'No' if int(options[-1]) else 'Yes', 'dn' : d[0][8:].decode(), 'options' : int(d[1])}
+    return ret
+
+def encode_gplink(gplist):
+    '''Encode an array of dn and options into gPLink string'''
+    ret = ''
+    for g in gplist:
+        ret += "[LDAP://%s;%d]" % (g['dn'], g['options'])
     return ret
 
 class GPConnection:
@@ -163,7 +170,7 @@ class GPConnection:
     def set_attr(self, dn, key, value):
         self.l.modify(dn, [(1, key, None), (0, key, value)])
 
-    def create_gpo(self, displayName):
+    def create_gpo(self, displayName, container=None):
         msg = self.gpo_list(displayName)
         if len(msg) > 0:
             raise Exception("A GPO already existing with name '%s'" % displayName)
@@ -187,10 +194,53 @@ class GPConnection:
             self.l.add_s(user_dn, addlist(sub_ldap_mod))
 
             gpo.initialize_empty_gpo(displayName)
-            # TODO: GPO links
+            if container:
+                self.set_link(dn, container)
         except Exception as e:
             print(str(e))
             traceback.print_exc(file=sys.stdout)
+
+    def set_link(self, gpo_dn, container_dn, disabled=False, enforced=False):
+        gplink_options = 0
+        if disabled:
+            gplink_options |= (1 << 0)
+        if enforced:
+            gplink_options |= (1 << 1)
+
+        # Check if valid Container DN
+        try:
+            msg = self.l.search_s(container_dn, ldap.SCOPE_BASE,
+                                  "(objectClass=*)",
+                                  ['gPLink'])[0][1]
+        except Exception:
+            raise Exception("Container '%s' does not exist" % container_dn)
+
+        # Update existing GPlinks or Add new one
+        existing_gplink = False
+        if 'gPLink' in msg:
+            gplist = parse_gplink(msg['gPLink'][0])
+            gplist = [gplist[k] for k in gplist]
+            existing_gplink = True
+            found = False
+            for g in gplist:
+                if g['dn'].lower() == gpo_dn.lower():
+                    found = True
+                    break
+            if found:
+                print("GPO '%s' already linked to this container" % gpo)
+                return
+            else:
+                gplist.insert(0, { 'dn' : gpo_dn, 'options' : gplink_options })
+        else:
+            gplist = []
+            gplist.append({ 'dn' : gpo_dn, 'options' : gplink_options })
+
+        gplink_str = encode_gplink(gplist)
+
+        if existing_gplink:
+            self.l.modify(container_dn, [(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])])
+        else:
+            self.l.add_s(container_dn, addlist({'gPLink': [gplink_str.encode('utf-8')]}))
 
     def delete_gpo(self, displayName):
         msg = self.gpo_list(displayName)
@@ -222,7 +272,7 @@ class GPConnection:
         try:
             msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         except Exception as e:
-            raise Exception("Could not find container(s) with GPO %s" % gpo, e)
+            return []
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
@@ -231,7 +281,7 @@ class GPConnection:
         try:
             msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         except Exception as e:
-            raise Exception("Could not find container(s) with GPO %s" % gpo, e)
+            return []
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
