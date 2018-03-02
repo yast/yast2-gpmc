@@ -278,11 +278,14 @@ class GPConnection:
             raise Exception("GPO '%s' does not exist" % displayName)
 
         unc_path = msg[0][1]['gPCFileSysPath'][0]
+        gpo_dn = msg[0][1]['distinguishedName'][0]
 
-        # Remove links before deleting...
+        # Remove links before deleting
+        linked_containers = self.get_gpo_containers(gpo_dn)
+        for container in linked_containers:
+            self.delete_link(gpo_dn, container['distinguishedName'][0].decode())
 
         # Remove LDAP entries
-        gpo_dn = msg[0][1]['distinguishedName'][0]
         try:
             self.l.delete_s("CN=User,%s" % str(gpo_dn))
             self.l.delete_s("CN=Machine,%s" % str(gpo_dn))
