@@ -271,6 +271,7 @@ class GPMC:
                 print(str(e))
                 creds.set_password('')
                 self.got_creds = self.__get_creds(creds)
+        self.realm_dn = self.q.realm_to_dn(self.realm)
 
     def __setup_menus(self):
         UI.WizardCommand(Term('DeleteMenus'))
@@ -403,7 +404,7 @@ class GPMC:
                 if gpo_guid == 'Group Policy Objects':
                     UI.OpenContextMenu(self.__objs_context_menu())
                 elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):
-                    if parent != 'Group Policy Objects' and parent != self.realm:
+                    if parent != 'Group Policy Objects' and parent != self.realm_dn:
                         UI.OpenContextMenu(self.__gpo_context_menu(parent))
                     else:
                         UI.OpenContextMenu(self.__gpo_context_menu())
@@ -442,7 +443,7 @@ class GPMC:
                         Wizard.DisableNextButton()
                         UI.ReplaceWidget('rightPane', Empty())
                         current_page = None
-                elif gpo_guid == self.realm:
+                elif gpo_guid == self.realm_dn:
                     if current_page != 'Realm':
                         Wizard.DisableNextButton()
                         UI.ReplaceWidget('rightPane', self.__realm())
@@ -639,7 +640,7 @@ class GPMC:
         forest = [
             Item('Domains', True,
             [
-                Item(self.realm, True, folders)
+                Item(Id(self.realm_dn), self.realm, True, folders)
             ])
         ]
         contents = Tree(Id('gpmc_tree'), Opt('notify', 'immediate', 'notifyContextMenu'), 'Group Policy Management', forest)
