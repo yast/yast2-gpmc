@@ -240,7 +240,7 @@ class GPConnection:
         if existing_gplink:
             self.l.modify(container_dn, [(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])])
         else:
-            self.l.add_s(container_dn, addlist({'gPLink': [gplink_str.encode('utf-8')]}))
+            self.l.modify(container_dn, [(0, 'gPLink', [gplink_str.encode('utf-8')])])
 
     def delete_link(self, gpo_dn, container_dn):
         # Check if valid Container DN
@@ -310,7 +310,7 @@ class GPConnection:
         return [res[1] for res in msg if type(res[1]) is dict]
 
     def get_containers_with_gpos(self):
-        search_expr = "(&(objectClass=*)(gPLink=*))"
+        search_expr = "(|(objectClass=organizationalUnit)(objectClass=domain))"
         try:
             msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         except Exception as e:

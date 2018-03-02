@@ -626,7 +626,10 @@ class GPMC:
                     folders.append(Item(Id(gpname), displayName))
             else:
                 container_objs = []
-                gplists = parse_gplink(container['gPLink'][-1])
+                if 'gPLink' in container:
+                    gplists = parse_gplink(container['gPLink'][-1])
+                else:
+                    gplists = []
                 for gpname in gplists:
                     gpo = self.__find_gpo(gpname)
                     displayName = gpo[1]['displayName'][-1] if gpo else gpname
