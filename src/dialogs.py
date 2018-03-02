@@ -634,8 +634,8 @@ class GPMC:
                     gpo = self.__find_gpo(gpname)
                     displayName = gpo[1]['displayName'][-1] if gpo else gpname
                     container_objs.append(Item(Id(gpname), displayName))
-                folders.append(Item(Id(container['distinguishedName'][-1]), container['name'][-1], True, container_objs))
-        folders.append(Item('Group Policy Objects', True, items))
+                folders.append(Item(Id(container['distinguishedName'][-1]), container['name'][-1], False, container_objs))
+        folders.append(Item('Group Policy Objects', False, items))
         forest = [
             Item('Domains', True,
             [
