@@ -309,6 +309,28 @@ class GPConnection:
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
+    def get_gpos_for_container(self, container_dn):
+        search_expr = '(distinguishedName=%s)' % container_dn
+        try:
+            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        except Exception as e:
+            return None
+
+        results = []
+        if 'gPLink' in msg[0][1]:
+            gpos = parse_gplink(msg[0][1]['gPLink'][-1])
+        else:
+            gpos = []
+        for gpo in gpos:
+            try:
+                search_expr = '(distinguishedName=%s)' % gpos[gpo]['dn']
+                msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+            except Exception as e:
+                msg = None
+            results.append(msg[0])
+
+        return results
+
     def get_containers_with_gpos(self):
         search_expr = "(|(objectClass=organizationalUnit)(objectClass=domain))"
         try:

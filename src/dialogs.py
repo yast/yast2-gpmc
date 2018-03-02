@@ -392,12 +392,12 @@ class GPMC:
             elif str(ret) == 'add_gpo':
                 self.add_gpo()
                 self.__reset()
-                UI.ReplaceWidget('rightPane', self.__realm())
+                UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
                 current_page = 'Realm'
             elif str(ret) == 'del_gpo':
                 self.del_gpo(UI.QueryWidget('link_order', 'CurrentItem'))
                 self.__reset()
-                UI.ReplaceWidget('rightPane', self.__realm())
+                UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
                 current_page = 'Realm'
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
                 parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
@@ -446,10 +446,10 @@ class GPMC:
                 elif gpo_guid == self.realm_dn:
                     if current_page != 'Realm':
                         Wizard.DisableNextButton()
-                        UI.ReplaceWidget('rightPane', self.__realm())
+                        UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
                         current_page = 'Realm'
                     if ret == 'Linked Group Policy Objects':
-                        UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_links())
+                        UI.ReplaceWidget(Id('realm_tabContainer'), self.__container_links(gpo_guid))
                     elif ret == 'Delegation':
                         UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_delegation())
                     elif ret == 'Group Policy Inheritance':
@@ -459,6 +459,9 @@ class GPMC:
                         Wizard.DisableNextButton()
                         UI.ReplaceWidget('rightPane', Empty())
                         current_page = 'Group Policy Objects'
+                elif gpo_guid.lower().startswith('ou='):
+                    UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
+                    current_page = None
                 else:
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         Wizard.EnableNextButton()
@@ -554,6 +557,8 @@ class GPMC:
         )
 
     def __ms_time_to_readable(self, timestamp):
+        if type(timestamp) is bytes:
+            timestamp = timestamp.decode()
         m = re.match('(?P<year>\d\d\d\d)(?P<month>\d\d)(?P<day>\d\d)(?P<hour>\d\d)(?P<minute>\d\d)(?P<second>\d\d)\..*', timestamp)
         if m:
             return '%s/%s/%s %s:%s:%s UTC' % (m.group('month'), m.group('day'), m.group('year'), m.group('hour'), m.group('minute'), m.group('second'))
@@ -647,7 +652,7 @@ class GPMC:
         
         return contents
 
-    def __realm(self):
+    def __container(self, dn):
         global have_advanced_gui
         if have_advanced_gui:
             buttons = Empty()
@@ -661,7 +666,7 @@ class GPMC:
                 'Linked Group Policy Objects',
                 #'Group Policy Inheritance',
                 #'Delegation'
-            ], ReplacePoint(Id('realm_tabContainer'), self.__realm_links()))),
+            ], ReplacePoint(Id('realm_tabContainer'), self.__container_links(dn)))),
             buttons,
         )
 
@@ -671,10 +676,10 @@ class GPMC:
     def __realm_inheritance(self):
         return Top(HBox(Empty()))
 
-    def __realm_links(self):
+    def __container_links(self, dn):
         header = Header('Link Order', 'GPO', 'Enforced', 'Link Enabled', 'GPO Status', 'WMI Filter', 'Modified', 'Domain')
         contents = []
-        for gpo in self.gpos:
+        for gpo in self.q.get_gpos_for_container(dn):
             status = ''
             if gpo[1]['flags'][-1] == '0':
                 status = 'Enabled'
