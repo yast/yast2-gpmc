@@ -338,6 +338,17 @@ class GPMC:
         except:
             self.gpos = []
 
+    def del_link(self, child, parent):
+        UI.OpenDialog(self.__request_delete_link())
+        sret = UI.UserInput()
+        if str(sret) == 'delete_link':
+            self.q.delete_link(child, parent)
+        UI.CloseDialog()
+        try:
+            self.gpos = self.q.gpo_list()
+        except:
+            self.gpos = []
+
     def __reset(self):
         global have_advanced_gui
         if not have_advanced_gui:
@@ -388,10 +399,14 @@ class GPMC:
                 UI.ReplaceWidget('rightPane', self.__realm())
                 current_page = 'Realm'
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
+                parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
                 if gpo_guid == 'Group Policy Objects':
                     UI.OpenContextMenu(self.__objs_context_menu())
                 elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):
-                    UI.OpenContextMenu(self.__gpo_context_menu())
+                    if parent != 'Group Policy Objects' and parent != self.realm:
+                        UI.OpenContextMenu(self.__gpo_context_menu(parent))
+                    else:
+                        UI.OpenContextMenu(self.__gpo_context_menu())
                 elif gpo_guid != 'Domains':
                     UI.OpenContextMenu(self.__objs_context_menu(gpo_guid))
             elif ret == 'edit_gpo':
@@ -401,6 +416,13 @@ class GPMC:
             elif ret == 'context_del_gpo':
                 selected_gpo = self.__find_gpo(gpo_guid)
                 current_page = self.del_gpo(selected_gpo[1]['displayName'][-1])
+                self.__reset()
+                UI.ReplaceWidget('rightPane', Empty())
+                current_page = None
+            elif ret == 'context_del_link':
+                selected_gpo = self.__find_gpo(gpo_guid)
+                parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
+                self.del_link(selected_gpo[1]['distinguishedName'][-1], parent)
                 self.__reset()
                 UI.ReplaceWidget('rightPane', Empty())
                 current_page = None
@@ -463,10 +485,14 @@ class GPMC:
 
         return Symbol(ret)
 
-    def __gpo_context_menu(self):
+    def __gpo_context_menu(self, parent=None):
+        if parent:
+            delete_id = 'context_del_link'
+        else:
+            delete_id = 'context_del_gpo'
         return Term('menu', [
             Item(Id('edit_gpo'), 'Edit...'),
-            Item(Id('context_del_gpo'), 'Delete')
+            Item(Id(delete_id), 'Delete')
         ])
 
     def __objs_context_menu(self, container=None):
@@ -490,10 +516,19 @@ class GPMC:
 
     def __request_delete_gpo(self):
         return MinWidth(30, VBox(
-            Label('Do you want to delete this GPO and all links to it in this domain?'),
+            Label('Do you want to delete this GPO and all links to it in this\ndomain? This will not delete links in other domains.'),
             Right(HBox(
                 PushButton(Id('delete_gpo'), 'Yes'),
                 PushButton(Id('cancel_delete_gpo'), 'No'),
+            ))
+        ))
+
+    def __request_delete_link(self):
+        return MinWidth(30, VBox(
+            Label('Do you want to delete this link?\nThis will not delete the GPO itself.'),
+            Right(HBox(
+                PushButton(Id('delete_link'), 'OK'),
+                PushButton(Id('cancel_delete_link'), 'Cancel'),
             ))
         ))
 

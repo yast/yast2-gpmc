@@ -242,6 +242,36 @@ class GPConnection:
         else:
             self.l.add_s(container_dn, addlist({'gPLink': [gplink_str.encode('utf-8')]}))
 
+    def delete_link(self, gpo_dn, container_dn):
+        # Check if valid Container DN
+        try:
+            msg = self.l.search_s(container_dn, ldap.SCOPE_BASE,
+                                  "(objectClass=*)",
+                                  ['gPLink'])[0][1]
+        except Exception:
+            raise Exception("Container '%s' does not exist" % container_dn)
+
+        found = False
+        if 'gPLink' in msg:
+            gplist = parse_gplink(msg['gPLink'][0])
+            gplist = [gplist[k] for k in gplist]
+            for g in gplist:
+                if g['dn'].lower() == gpo_dn.lower():
+                    gplist.remove(g)
+                    found = True
+                    break
+        else:
+            raise Exception("No GPO(s) linked to this container")
+
+        if not found:
+            raise Exception("GPO '%s' not linked to this container" % gpo_dn)
+
+        if gplist:
+            gplink_str = encode_gplink(gplist)
+            self.l.modify(container_dn, [(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])])
+        else:
+            self.l.modify(container_dn, [(ldap.MOD_DELETE, 'gPLink', None)])
+
     def delete_gpo(self, displayName):
         msg = self.gpo_list(displayName)
         if len(msg) == 0:
