@@ -173,7 +173,8 @@ class GPConnection:
     def create_gpo(self, displayName, container=None):
         msg = self.gpo_list(displayName)
         if len(msg) > 0:
-            raise Exception("A GPO already existing with name '%s'" % displayName)
+            print("A GPO already existing with name '%s'" % displayName)
+            return
 
         gpouuid = uuid.uuid4()
         realm_dn = self.realm_to_dn(self.realm)
