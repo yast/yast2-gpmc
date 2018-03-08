@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
 from defaults import Policies, fetch_inf_value
 from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink
 from yast import import_module

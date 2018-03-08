@@ -1,3 +1,4 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
 from dialogs import GPMC, GPME
 from yast import import_module
 import_module('Wizard')
