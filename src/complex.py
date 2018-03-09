@@ -581,7 +581,7 @@ class GPOConnection(GPConnection):
             if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
                 print(e.args[1] % (path))
             else:
-                print(e.args[1])
+                print(e)
 
     def __write_inf(self, filename, inf_config):
         out = StringIO()
