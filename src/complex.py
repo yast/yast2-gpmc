@@ -346,6 +346,8 @@ class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
         [dom_name, service, self.path] = parse_unc(gpo_path)
+        path_parts = [n for n in gpo_path.split('\\') if n]
+        self.path_start = '\\\\' + '\\'.join([dom_name, service])
         self.name = gpo_path.split('\\')[-1]
         self.realm_dn = self.realm_to_dn(self.realm)
         self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
