@@ -22,6 +22,61 @@ from samba.ntacls import dsacl2fsacl
 PY3 = sys.version_info[0] == 3
 PY2 = sys.version_info[0] == 2
 
+class LdapException(Exception):
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+        if len(self.args) > 0:
+            self.msg = self.args[0]
+        else:
+            self.msg = None
+        if len(self.args) > 1:
+            self.info = self.args[1]
+        else:
+            self.info = None
+
+def _ldap_exc_msg(e):
+    if len(e.args) > 0 and \
+      type(e.args[-1]) is dict and \
+      'desc' in e.args[-1]:
+        return e.args[-1]['desc']
+    else:
+        return str(e)
+
+def _ldap_exc_info(e):
+    if len(e.args) > 0 and \
+      type(e.args[-1]) is dict and \
+      'info' in e.args[-1]:
+        return e.args[-1]['info']
+    else:
+        return ''
+
+def ldap_search(l, *args):
+    try:
+        return l.search_s(*args)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write('ldap.search_s: %s\n' % _ldap_exc_msg(e))
+
+def ldap_add(l, *args):
+    try:
+        return l.add_s(*args)
+    except Exception as e:
+        raise LdapException(_ldap_exc_msg(e), _ldap_exc_info(e))
+
+def ldap_modify(l, *args):
+    try:
+        return l.modify(*args)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write('ldap.modify: %s\n' % _ldap_exc_msg(e))
+
+def ldap_delete(l, *args):
+    try:
+        return l.delete_s(*args)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write('ldap.delete_s: %s\n' % _ldap_exc_msg(e))
+
 def open_bytes(filename):
     if PY3:
         return open(filename, errors='ignore')
@@ -44,28 +99,25 @@ def dict_to_bytes(d):
             d[key] = d[key].encode('utf-8')
     return d
 
-# python2 strings not bytes. python3-ldap returns
-# attributes as bytes. Rather than change all the code
-# this attempts to minimise the changes by trying to present the
-# ldap results as they would have appeared in the previous python2
-# existence.
-def stringify_ldap_results(ldap_res):
-    new_res = ldap_res
-    for entry in ldap_res:
-        attrs = entry[1]
-        for key in attrs:
-            new_list = []
-            for value in attrs[key]:
-                try:
-                    new_val = str(value, 'utf8')
-                    new_list.append(new_val)
-                except Exception as e:
-                    #ObjectID I think it's the only one falls into this category
-                    #print ("failed to stringify value for key %s value %s\n"%(key, value))
-                    # fallback to bytes
-                    new_list.append(value)
-            attrs[key] = new_list
-    return new_res
+def stringify_ldap(data):
+    if type(data) == dict:
+        for key, value in data.items():
+            data[key] = stringify_ldap(value)
+        return data
+    elif type(data) == list:
+        new_list = []
+        for item in data:
+            new_list.append(stringify_ldap(item))
+        return new_list
+    elif type(data) == tuple:
+        new_tuple = []
+        for item in data:
+            new_tuple.append(stringify_ldap(item))
+        return tuple(new_tuple)
+    elif type(data) == unicode:
+        return str(data)
+    else:
+        return data
 
 def parse_unc(unc):
     '''Parse UNC string into a hostname, a service, and a filepath'''
@@ -142,37 +194,33 @@ class GPConnection:
             wkguiduc = 'A361B2FFFFD211D1AA4B00C04FD7D83A'
         elif container == 'users':
             wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
-        result = self.l.search_s('<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', ['distinguishedName'])
-        result = stringify_ldap_results(result)
+        result = ldap_search(self.l, '<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', stringify_ldap(['distinguishedName']))
+        result = stringify_ldap(result)
         if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
             res = result[0][1]['distinguishedName'][-1]
 
         return res
 
     def user_from_sid(self, sid, attrs=[]):
-        res = self.l.search_s(self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, attrs)
+        res = ldap_search(self.l, self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, stringify_ldap(attrs))
         return res[0][1]
 
     def get_domain_sid(self):
-        res = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
+        res = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
         return ndr_unpack(security.dom_sid, res[0][1]["objectSid"][0])
 
     def gpo_list(self, displayName=None, attrs=[]):
         result = None
-        try:
-            res = self.__well_known_container('system')
-            search_expr = '(objectClass=groupPolicyContainer)'
-            if displayName is not None:
-                search_expr = '(&(objectClass=groupPolicyContainer)(displayname=%s))' % ldb.binary_encode(displayName)
-            result = self.l.search_s(res, ldap.SCOPE_SUBTREE, search_expr, attrs)
-            result = stringify_ldap_results(result)
-        except Exception as e:
-             print ("#### caught exception %s\n"%e)
-             traceback.print_exc(file=sys.stdout)
+        res = self.__well_known_container('system')
+        search_expr = '(objectClass=groupPolicyContainer)'
+        if displayName is not None:
+            search_expr = '(&(objectClass=groupPolicyContainer)(displayname=%s))' % ldb.binary_encode(displayName)
+        result = ldap_search(self.l, res, ldap.SCOPE_SUBTREE, search_expr, stringify_ldap(attrs))
+        result = stringify_ldap(result)
         return result
 
     def set_attr(self, dn, key, value):
-        self.l.modify(dn, [(1, key, None), (0, key, value)])
+        ldap_modify(self.l, dn, stringify_ldap([(1, key, None), (0, key, value)]))
 
     def create_gpo(self, displayName, container=None):
         msg = self.gpo_list(displayName)
@@ -194,16 +242,15 @@ class GPConnection:
 
         gpo = GPOConnection(self.lp, self.creds, unc_path)
         try:
-            self.l.add_s(dn, addlist(ldap_mod))
-            self.l.add_s(machine_dn, addlist(sub_ldap_mod))
-            self.l.add_s(user_dn, addlist(sub_ldap_mod))
-
-            gpo.initialize_empty_gpo(displayName)
-            if container:
-                self.set_link(dn, container)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc(file=sys.stdout)
+            ldap_add(self.l, dn, addlist(stringify_ldap(ldap_mod)))
+            ldap_add(self.l, machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
+            ldap_add(self.l, user_dn, addlist(stringify_ldap(sub_ldap_mod)))
+        except LdapException as e:
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
+        gpo.initialize_empty_gpo(displayName)
+        if container:
+            self.set_link(dn, container)
 
     def set_link(self, gpo_dn, container_dn, disabled=False, enforced=False):
         gplink_options = 0
@@ -213,12 +260,10 @@ class GPConnection:
             gplink_options |= (1 << 1)
 
         # Check if valid Container DN
-        try:
-            msg = self.l.search_s(container_dn, ldap.SCOPE_BASE,
-                                  "(objectClass=*)",
-                                  ['gPLink'])[0][1]
-        except Exception:
-            raise Exception("Container '%s' does not exist" % container_dn)
+        msg = ldap_search(self.l,
+                         container_dn, ldap.SCOPE_BASE,
+                         "(objectClass=*)",
+                         stringify_ldap(['gPLink']))[0][1]
 
         # Update existing GPlinks or Add new one
         existing_gplink = False
@@ -243,18 +288,16 @@ class GPConnection:
         gplink_str = encode_gplink(gplist)
 
         if existing_gplink:
-            self.l.modify(container_dn, [(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])])
+            ldap_modify(self.l, container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
         else:
-            self.l.modify(container_dn, [(0, 'gPLink', [gplink_str.encode('utf-8')])])
+            ldap_modify(self.l, container_dn, stringify_ldap([(0, 'gPLink', [gplink_str.encode('utf-8')])]))
 
     def delete_link(self, gpo_dn, container_dn):
         # Check if valid Container DN
-        try:
-            msg = self.l.search_s(container_dn, ldap.SCOPE_BASE,
-                                  "(objectClass=*)",
-                                  ['gPLink'])[0][1]
-        except Exception:
-            raise Exception("Container '%s' does not exist" % container_dn)
+        msg = ldap_search(self.l,
+                         container_dn, ldap.SCOPE_BASE,
+                         "(objectClass=*)",
+                         stringify_ldap(['gPLink']))[0][1]
 
         found = False
         if 'gPLink' in msg:
@@ -273,9 +316,9 @@ class GPConnection:
 
         if gplist:
             gplink_str = encode_gplink(gplist)
-            self.l.modify(container_dn, [(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])])
+            ldap_modify(self.l, container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])]))
         else:
-            self.l.modify(container_dn, [(ldap.MOD_DELETE, 'gPLink', None)])
+            ldap_modify(self.l, container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None)]))
 
     def delete_gpo(self, displayName):
         msg = self.gpo_list(displayName)
@@ -291,11 +334,10 @@ class GPConnection:
             self.delete_link(gpo_dn, container['distinguishedName'][0].decode())
 
         # Remove LDAP entries
+        ldap_delete(self.l, "CN=User,%s" % str(gpo_dn))
+        ldap_delete(self.l, "CN=Machine,%s" % str(gpo_dn))
+        ldap_delete(self.l, gpo_dn)
         try:
-            self.l.delete_s("CN=User,%s" % str(gpo_dn))
-            self.l.delete_s("CN=Machine,%s" % str(gpo_dn))
-            self.l.delete_s(gpo_dn)
-
             # Remove GPO files
             gpo = GPOConnection(self.lp, self.creds, unc_path)
             gpo.cleanup_gpo()
@@ -307,18 +349,16 @@ class GPConnection:
         '''lists dn of containers for a GPO'''
 
         search_expr = "(&(objectClass=*)(gPLink=*%s*))" % gpo
-        try:
-            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
-        except Exception as e:
+        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        if not msg:
             return []
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
     def get_gpos_for_container(self, container_dn):
         search_expr = '(distinguishedName=%s)' % container_dn
-        try:
-            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
-        except Exception as e:
+        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        if not msg:
             return None
 
         results = []
@@ -327,20 +367,16 @@ class GPConnection:
         else:
             gpos = []
         for gpo in gpos:
-            try:
-                search_expr = '(distinguishedName=%s)' % gpos[gpo]['dn']
-                msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
-            except Exception as e:
-                msg = None
+            search_expr = '(distinguishedName=%s)' % gpos[gpo]['dn']
+            msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
             results.append(msg[0])
 
         return results
 
     def get_containers_with_gpos(self):
         search_expr = "(|(objectClass=organizationalUnit)(objectClass=domain))"
-        try:
-            msg = self.l.search_s(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
-        except Exception as e:
+        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        if not msg:
             return []
 
         return [res[1] for res in msg if type(res[1]) is dict]
@@ -387,7 +423,7 @@ class GPOConnection(GPConnection):
         ds_sd_flags = ( security.SECINFO_OWNER |
                         security.SECINFO_GROUP |
                         security.SECINFO_DACL )
-        msg = self.gpo_list(displayName, attrs=['nTSecurityDescriptor'])
+        msg = self.gpo_list(displayName, attrs=stringify_ldap(['nTSecurityDescriptor']))
         ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
         ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr).as_sddl()
 
@@ -467,34 +503,33 @@ class GPOConnection(GPConnection):
 
     def __parse_dn(self, dn):
         dn = dn % self.gpo_dn
-        try:
-            resp = self.l.search_s(dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
-            resp = stringify_ldap_results(resp)
+        resp = ldap_search(self.l, dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
+        resp = stringify_ldap(resp)
+        if resp:
             keys = ['objectClass', 'msiFileList', 'msiScriptPath', 'displayName', 'versionNumberHi', 'versionNumberLo']
             results = {a[-1]['name'][-1]: {k: a[-1][k] for k in a[-1].keys() if k in keys} for a in resp}
-        except Exception as e:
-            if 'No such object' in str(e):
-                results = {}
-            else:
-                raise
+        else:
+            results = {}
         return results
 
     def __mkdn_p(self, dn):
         attrs = { 'objectClass' : [b'top', b'container'] }
         try:
-            self.l.add_s(dn, addlist(attrs))
-        except Exception as e:
-            if e.args[-1]['desc'] == 'No such object':
+            ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
+        except LdapException as e:
+            if e.msg == 'No such object':
                 self.__mkdn_p(','.join(dn.split(',')[1:]))
-            elif e.args[-1]['desc'] == 'Already exists':
+            elif e.msg == 'Already exists':
                 return
             else:
-                sys.stderr.write(e.args[-1]['info'])
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
         try:
-            self.l.add_s(dn, addlist(attrs))
-        except Exception as e:
-            if e.args[-1]['desc'] != 'Already exists':
-                sys.stderr.write(e.args[-1]['info'])
+            ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
+        except LdapException as e:
+            if e.msg != 'Already exists':
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
     def __write_dn(self, dn, ldap_config):
         for cn in ldap_config.keys():
@@ -506,15 +541,13 @@ class GPOConnection(GPConnection):
             self.__mkdn_p(','.join(obj_dn.split(',')[1:]))
             ldap_config[cn] = dict_to_bytes(ldap_config[cn])
             try:
-                self.l.add_s(obj_dn, addlist(ldap_config[cn]))
-            except Exception as e:
-                if e.args[-1]['desc'] == 'Already exists':
-                    try:
-                        self.l.modify_s(obj_dn, modlist({}, ldap_config[cn]))
-                    except Exception as e:
-                        sys.stderr.write(e.args[-1]['info'])
+                ldap_add(self.l, obj_dn, addlist(stringify_ldap(ldap_config[cn])))
+            except LdapException as e:
+                if e.msg == 'Already exists':
+                    ldap_modify(self.l, obj_dn, modlist({}, stringify_ldap(ldap_config[cn])))
                 else:
-                    sys.stderr.write(e.args[-1]['info'])
+                    traceback.print_exc(file=sys.stderr)
+                    sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
             if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == b'.zap':
                 inf_conf = self.__parse_inf(ldap_config[cn]['msiFileList'][-1])
