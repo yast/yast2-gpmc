@@ -19,8 +19,11 @@ from samba.ndr import ndr_unpack
 import samba.security
 from samba.ntacls import dsacl2fsacl
 
+PY3 = sys.version_info[0] == 3
+PY2 = sys.version_info[0] == 2
+
 def open_bytes(filename):
-    if sys.version_info[0] == 3:
+    if PY3:
         return open(filename, errors='ignore')
     else:
         return open(filename, 'rb')
@@ -531,7 +534,7 @@ class GPOConnection(GPConnection):
                 sys.stderr.write(str(e))
                 policy = ''
             inf_conf.optionxform=str
-            if type(policy) is str:
+            if PY3 and type(policy) is str:
                 inf_conf.readfp(StringIO(policy))
             else:
                 try:
@@ -575,7 +578,7 @@ class GPOConnection(GPConnection):
         path = '\\'.join([self.path, filename])
         filedir = os.path.dirname((path).replace('\\', '/')).replace('/', '\\')
         self.__smb_mkdir_p(filedir)
-        if type(text) is str:
+        if PY3 and type(text) is str:
             text = text.encode('utf-8')
         try:
             self.conn.savefile(path, text)
@@ -601,7 +604,7 @@ class GPOConnection(GPConnection):
         if os.path.exists(local):
             value = open_bytes(local).read()
             filename = '\\'.join([remote_path, os.path.basename(local)])
-            if type(value) is str:
+            if PY3 and type(value) is str:
                 value = value.encode('utf-8')
             try:
                 self.conn.savefile(filename, value)
