@@ -114,8 +114,13 @@ def stringify_ldap(data):
         for item in data:
             new_tuple.append(stringify_ldap(item))
         return tuple(new_tuple)
-    elif type(data) == unicode:
+    elif PY2 and type(data) == unicode:
         return str(data)
+    elif PY3 and type(data) == bytes:
+        try:
+            return data.decode('utf-8')
+        except UnicodeDecodeError:
+            return data
     else:
         return data
 
@@ -199,7 +204,7 @@ class GPConnection:
         if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
             res = result[0][1]['distinguishedName'][-1]
 
-        return res
+        return stringify_ldap(res)
 
     def user_from_sid(self, sid, attrs=[]):
         res = ldap_search(self.l, self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, stringify_ldap(attrs))
