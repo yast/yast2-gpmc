@@ -18,6 +18,7 @@ from samba.dcerpc import security
 from samba.ndr import ndr_unpack
 import samba.security
 from samba.ntacls import dsacl2fsacl
+from yast import ycpbuiltins
 
 PY3 = sys.version_info[0] == 3
 PY2 = sys.version_info[0] == 2
@@ -54,8 +55,8 @@ def ldap_search(l, *args):
     try:
         return l.search_s(*args)
     except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write('ldap.search_s: %s\n' % _ldap_exc_msg(e))
+        ycpbuiltins.y2error(traceback.format_exc())
+        ycpbuiltins.y2error('ldap.search_s: %s\n' % _ldap_exc_msg(e))
 
 def ldap_add(l, *args):
     try:
@@ -67,15 +68,15 @@ def ldap_modify(l, *args):
     try:
         return l.modify(*args)
     except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write('ldap.modify: %s\n' % _ldap_exc_msg(e))
+        ycpbuiltins.y2error(traceback.format_exc())
+        ycpbuiltins.y2error('ldap.modify: %s\n' % _ldap_exc_msg(e))
 
 def ldap_delete(l, *args):
     try:
         return l.delete_s(*args)
     except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write('ldap.delete_s: %s\n' % _ldap_exc_msg(e))
+        ycpbuiltins.y2error(traceback.format_exc())
+        ycpbuiltins.y2error('ldap.delete_s: %s\n' % _ldap_exc_msg(e))
 
 def open_bytes(filename):
     if PY3:
@@ -181,7 +182,7 @@ class GPConnection:
         self.l.set_option(ldap.OPT_REFERRALS,0)
 
     def __kinit_for_gssapi(self):
-        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
+        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         p.stdin.write(('%s\n'%self.creds.get_password()).encode())
         p.stdin.flush()
         return p.wait() == 0
@@ -230,7 +231,7 @@ class GPConnection:
     def create_gpo(self, displayName, container=None):
         msg = self.gpo_list(displayName)
         if len(msg) > 0:
-            print("A GPO already existing with name '%s'" % displayName)
+            ycpbuiltins.y2debug("A GPO already existing with name '%s'" % displayName)
             return
 
         gpouuid = uuid.uuid4()
@@ -251,8 +252,8 @@ class GPConnection:
             ldap_add(self.l, machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
             ldap_add(self.l, user_dn, addlist(stringify_ldap(sub_ldap_mod)))
         except LdapException as e:
-            traceback.print_exc(file=sys.stderr)
-            sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
         gpo.initialize_empty_gpo(displayName)
         if container:
             self.set_link(dn, container)
@@ -282,7 +283,7 @@ class GPConnection:
                     found = True
                     break
             if found:
-                print("GPO '%s' already linked to this container" % gpo)
+                ycpbuiltins.y2debug("GPO '%s' already linked to this container" % gpo)
                 return
             else:
                 gplist.insert(0, { 'dn' : gpo_dn, 'options' : gplink_options })
@@ -347,8 +348,8 @@ class GPConnection:
             gpo = GPOConnection(self.lp, self.creds, unc_path)
             gpo.cleanup_gpo()
         except Exception as e:
-            print(str(e))
-            traceback.print_exc(file=sys.stdout)
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
 
     def get_gpo_containers(self, gpo):
         '''lists dn of containers for a GPO'''
@@ -398,8 +399,8 @@ class GPOConnection(GPConnection):
         try:
             self.conn = smb.SMB(self.dc_hostname, service, lp=self.lp, creds=self.creds)
         except Exception as e:
-            print ("Exception %s"%str(e))
-            traceback.print_exc(file=sys.stdout)
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error("Exception %s"%str(e))
             self.conn = None
 
     def update_machine_gpe_ini(self, extension):
@@ -527,14 +528,14 @@ class GPOConnection(GPConnection):
             elif e.msg == 'Already exists':
                 return
             else:
-                traceback.print_exc(file=sys.stderr)
-                sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
+                ycpbuiltins.y2error(traceback.format_exc())
+                ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
         try:
             ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
         except LdapException as e:
             if e.msg != 'Already exists':
-                traceback.print_exc(file=sys.stderr)
-                sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
+                ycpbuiltins.y2error(traceback.format_exc())
+                ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
     def __write_dn(self, dn, ldap_config):
         for cn in ldap_config.keys():
@@ -551,8 +552,8 @@ class GPOConnection(GPConnection):
                 if e.msg == 'Already exists':
                     ldap_modify(self.l, obj_dn, modlist({}, stringify_ldap(ldap_config[cn])))
                 else:
-                    traceback.print_exc(file=sys.stderr)
-                    sys.stderr.write('ldap.add_s: %s\n' % e.info if e.info else e.msg)
+                    ycpbuiltins.y2error(traceback.format_exc())
+                    ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
             if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == b'.zap':
                 inf_conf = self.__parse_inf(ldap_config[cn]['msiFileList'][-1])
@@ -569,7 +570,7 @@ class GPOConnection(GPConnection):
             try:
                 policy = self.conn.loadfile('\\'.join([self.path, filename]))
             except Exception as e:
-                sys.stderr.write(str(e))
+                ycpbuiltins.y2error(str(e))
                 policy = ''
             inf_conf.optionxform=str
             if PY3 and type(policy) is str:
@@ -601,14 +602,14 @@ class GPOConnection(GPConnection):
             elif e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print(e.args[1])
+                ycpbuiltins.y2warning(e.args[1])
         try:
             self.conn.mkdir(path)
         except Exception as e:
             if e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
                 pass
             else:
-                print(e.args[1])
+                ycpbuiltins.y2warning(e.args[1])
 
     def __write(self, filename, text):
         if type(filename) is bytes:
@@ -622,9 +623,9 @@ class GPOConnection(GPConnection):
             self.conn.savefile(path, text)
         except Exception as e:
             if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
-                print(e.args[1] % (path))
+                ycpbuiltins.y2warning(e.args[1] % (path))
             else:
-                print(e)
+                ycpbuiltins.y2warning(str(e))
 
     def __write_inf(self, filename, inf_config):
         out = StringIO()
@@ -648,7 +649,7 @@ class GPOConnection(GPConnection):
                 self.conn.savefile(filename, value)
             except Exception as e:
                 if e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
-                    sys.stderr.write('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
+                    ycpbuiltins.y2error('The file \'%s\' already exists at \'%s\' and could not be saved.' % (os.path.basename(local), remote_path))
                 else:
-                    sys.stderr.write(e.args[1])
+                    ycpbuiltins.y2error(e.args[1])
             return filename

@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import sys, os, traceback
 import optparse
+from yast import ycpbuiltins
 
 from samba.param import LoadParm
 from samba.credentials import Credentials
@@ -56,5 +57,5 @@ if __name__ == "__main__":
     try:
         GPMCSequence(lp, creds)
     except:
-        traceback.print_exc(file=sys.stdout)
+        ycpbuiltins.y2error(traceback.format_exc())
 

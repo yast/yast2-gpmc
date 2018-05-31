@@ -270,7 +270,7 @@ class GPMC:
                 self.realm_dn = self.q.realm_to_dn(self.realm)
                 break
             except Exception as e:
-                print(str(e))
+                ycpbuiltins.y2error(str(e))
                 creds.set_password('')
                 self.got_creds = self.__get_creds(creds)
 
