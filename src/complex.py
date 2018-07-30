@@ -481,6 +481,10 @@ class GPOConnection(GPConnection):
 
         self.set_attr(self.gpo_dn, 'versionNumber', current)
 
+    def list(self, path):
+        path = os.path.relpath(os.path.join(self.path, path).replace('\\', '/'))
+        return self.conn.list(path)
+
     def parse(self, filename):
         if len(re.findall('CN=[A-Za-z ]+,', filename)) > 0:
             return self.__parse_dn(filename)
@@ -488,7 +492,7 @@ class GPOConnection(GPConnection):
             ext = os.path.splitext(filename)[-1].lower()
             if ext in ['.inf', '.ini', '.ins']:
                 return self.__parse_inf(filename)
-            elif ext == '.xml':
+            elif ext in ['.xml', '.admx', '.adml']:
                 return self.__parse_xml(filename)
             return ''
 
@@ -586,7 +590,8 @@ class GPOConnection(GPConnection):
         xml_conf = None
         if self.conn:
             try:
-                policy = self.conn.loadfile('\\'.join([self.path, filename]))
+                path = os.path.relpath(os.path.join(self.path, filename).replace('\\', '/')).replace('/', '\\')
+                policy = self.conn.loadfile(path)
                 xml_conf = etree.fromstring(policy)
             except:
                 xml_conf = None

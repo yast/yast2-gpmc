@@ -11,6 +11,8 @@ from samba.dcerpc import security
 from samba.ndr import ndr_unpack
 import samba.security
 from samba.ntacls import dsacl2fsacl
+import os.path
+from itertools import chain
 
 def have_x():
     from subprocess import Popen, PIPE
@@ -173,8 +175,121 @@ class GPME:
             HWeight(2, ReplacePoint(Id('rightPane'), Empty())),
             )
 
+    def __fetch_admin_templates(self):
+        templates = []
+        items = {}
+        def itemizer(ref, items):
+            if 'item' in items[ref].keys():
+                return
+            # First build dependant children
+            if len(items[ref]['children']) > 0:
+                for child_ref in items[ref]['children']:
+                    itemizer(child_ref, items)
+            # Next build the Item
+            children = [items[cr]['item'] for cr in items[ref]['children']]
+            if 'displayName' in items[ref].keys():
+                items[ref]['item'] = Item(Id(ref), items[ref]['displayName'], False, children)
+
+        def fetch_attr(obj, attr, strings, presentations):
+            val = obj.attrib[attr]
+            m = re.match('\$\((\w*).(\w*)\)', val)
+            if m and m.group(1) == 'string':
+                val = strings.find('string[@id="%s"]' % m.group(2)).text
+            elif m and m.group(1) == 'presentation':
+                val = presentations.find('presentation[@id="%s"]' % m.group(2)).text
+            return val
+
+        for f in self.conn.list('../PolicyDefinitions/'):
+            fname = os.path.join('../PolicyDefinitions/', f['name'])
+            fparts = os.path.splitext(fname)
+            if fparts[-1].lower() == '.admx':
+                admx = self.conn.parse(fname)
+                dirname = os.path.dirname(fparts[0])
+                basename = os.path.basename(fparts[0])
+                adml = self.conn.parse('%s/en-US/%s.adml' % (dirname, basename))
+                strings = adml.find('resources').find('stringTable')
+                presentations = adml.find('resources').find('presentationTable')
+                policies = admx.find('policies').findall('policy')
+                parents = set([p.find('parentCategory').attrib['ref'] for p in policies])
+                categories = admx.find('categories').findall('category')
+                for category in categories:
+                    disp = fetch_attr(category, 'displayName', strings, presentations)
+                    my_ref = category.attrib['name']
+                    par_ref = category.find('parentCategory').attrib['ref']
+
+                    if my_ref not in items.keys():
+                        items[my_ref] = {}
+                        items[my_ref]['children'] = []
+                    if par_ref not in items.keys():
+                        items[par_ref] = {}
+                        items[par_ref]['children'] = [my_ref]
+                    else:
+                        items[par_ref]['children'].append(my_ref)
+                    items[my_ref]['displayName'] = disp
+                for ref in items.keys():
+                    itemizer(ref, items)
+                refs = [items[r]['children'] for r in items.keys() if not 'item' in items[r].keys()]
+                refs = chain.from_iterable(refs)
+                for r in refs:
+                    templates.append(items[r]['item'])
+
+                for parent in parents:
+                    Policies[parent] = {}
+                    Policies[parent]['file'] = '\\MACHINE\\Registry.pol'
+                    Policies[parent]['gpe_extension'] = None
+                    Policies[parent]['new'] = None
+                    Policies[parent]['add'] = None
+                    Policies[parent]['header'] = (lambda : ['Setting', 'Value'])
+                    Policies[parent]['values'] = \
+                            (lambda conf, reg_key, key, desc, valstr, _input : {
+                                'setting' : {
+                                    'order' : 0,
+                                    'title' : 'Setting',
+                                    'get' : key,
+                                    'set' : None,
+                                    'valstr' : (lambda v : v),
+                                    'input' : {
+                                        'type' : 'Label',
+                                        'options' : None,
+                                    },
+                                },
+                                'value' : {
+                                    'order' : 1,
+                                    'title' : 'Value',
+                                    'get' : conf[reg_key][key] if reg_key in conf and key in conf[reg_key] else '',
+                                    'set' : (lambda v : None),
+                                    'valstr' : valstr,
+                                    'input' : _input,
+                                },
+                            } )
+
+                    def policy_generator(conf):
+                        values = {}
+                        for policy in policies:
+                            if policy.find('parentCategory').attrib['ref'] != parent:
+                                continue
+                            disp = fetch_attr(policy, 'displayName', strings, presentations)
+                            #desc = fetch_attr(policy, 'explainText', strings, presentations)
+                            desc = ''
+                            values[disp] = {}
+                            values[disp]['values'] = Policies[parent]['values'](
+                                conf, policy.attrib['key'], disp, desc, (lambda v : v),
+                                {
+                                    'type' : 'TextEntry',
+                                    'options' : None,
+                                },
+                            )
+                        return values
+
+                    Policies[parent]['opts'] = policy_generator
+
+        return templates
+
     def __policy_tree(self):
         global selected_gpo
+
+        admin_templates = self.__fetch_admin_templates()
+
         computer_config = [
             Item('Policies', False,
                 [
@@ -204,6 +319,9 @@ class GPME:
                             ),
                         ]
                     ),
+                    Item('Administrative Templates', False,
+                        admin_templates
+                    ),
                 ]
             ),
             Item('Preferences', False,
@@ -232,6 +350,9 @@ class GPME:
                                 ]
                             ),
                         ]
+                    ),
+                    Item('Administrative Templates', False,
+                        admin_templates
                     ),
                 ]
             ),
