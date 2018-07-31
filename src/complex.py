@@ -19,6 +19,8 @@ from samba.ndr import ndr_unpack
 import samba.security
 from samba.ntacls import dsacl2fsacl
 from yast import ycpbuiltins
+import struct
+from samba import registry
 
 PY3 = sys.version_info[0] == 3
 PY2 = sys.version_info[0] == 2
@@ -164,6 +166,81 @@ def encode_gplink(gplist):
     for g in gplist:
         ret += "[LDAP://%s;%d]" % (g['dn'], g['options'])
     return ret
+
+REGFILE_SIGNATURE = 0x67655250
+REGISTRY_FILE_VERSION = 1
+def unpack_registry_pol(data):
+    pol_conf = {}
+    sig = struct.unpack('<L', data[:4])[0]
+    if sig != REGFILE_SIGNATURE:
+        raise IOError('Registry file signature did not match')
+    vers = struct.unpack('<L', data[4:8])[0]
+    if vers != REGISTRY_FILE_VERSION:
+        raise IOError('Registry file version did not match')
+    o = 7
+    while o < len(data)-1:
+        obrack = data[o:o+2].decode('utf-16-be')
+        if obrack != '[':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+        rk_epos = data[o:].find(b';')-1
+        if rk_epos < 0:
+            raise IOError('Failed unpacking data from registry pol')
+        try:
+            reg_key = data[o:o+rk_epos-2].decode('utf-16-be')
+        except UnicodeDecodeError:
+            raise IOError('Failed unpacking data from registry pol')
+        if not reg_key in pol_conf.keys():
+            pol_conf[reg_key] = {}
+        o += rk_epos
+        osep = data[o:o+2].decode('utf-16-be')
+        if osep != ';':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+        rk_epos = data[o:].find(b';')-1
+        if rk_epos < 0:
+            raise IOError('Failed unpacking data from registry pol')
+        key = data[o:o+rk_epos-2].decode('utf-16-be')
+        o += rk_epos
+        osep = data[o:o+2].decode('utf-16-be')
+        if osep != ';':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+        rk_epos = data[o:].find(b';')-1
+        if rk_epos < 0:
+            raise IOError('Failed unpacking data from registry pol')
+        ntype = struct.unpack(">Hxx", data[o:o+rk_epos])[0]
+        rtype = registry.str_regtype(ntype)
+        o += rk_epos
+        osep = data[o:o+2].decode('utf-16-be')
+        if osep != ';':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+        rsize = struct.unpack("<xHx", data[o:o+4])[0]
+        o += 4
+        osep = data[o:o+2].decode('utf-16-be')
+        if osep != ';':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+        if rtype == 'REG_SZ':
+            val = data[o:o+rsize][:-2].decode('utf-16-be')
+        elif rtype == 'REG_DWORD':
+            val = struct.unpack("<xHx", data[o:o+rsize])[0]
+        elif rtype == 'REG_BINARY':
+            val = data[o:o+rsize]
+        elif rtype == 'REG_NONE':
+            val = b'\x00'*4
+        else:
+            ycpbuiltins.y2warning('%s Not Implemented' % rtype)
+            raise IOError('Failed unpacking value from registry pol')
+        o += rsize
+        cbrack = data[o:o+2]
+        if cbrack != b'\x00]' and cbrack != b'<]':
+            raise IOError('Failed unpacking data from registry pol')
+        o += 2
+
+        pol_conf[reg_key][key] = val
+    return pol_conf
 
 class GPConnection:
     def __init__(self, lp, creds):
@@ -494,6 +571,8 @@ class GPOConnection(GPConnection):
                 return self.__parse_inf(filename)
             elif ext in ['.xml', '.admx', '.adml']:
                 return self.__parse_xml(filename)
+            elif ext == '.pol':
+                return self.__parse_reg(filename)
             return ''
 
     def write(self, filename, config):
@@ -596,6 +675,17 @@ class GPOConnection(GPConnection):
             except:
                 xml_conf = None
         return xml_conf
+
+    def __parse_reg(self, filename):
+        pol_conf = None
+        if self.conn:
+            try:
+                path = os.path.relpath(os.path.join(self.path, filename).replace('\\', '/')).replace('/', '\\')
+                raw = self.conn.loadfile(path)
+                pol_conf = unpack_registry_pol(raw)
+            except:
+                pol_conf = None
+        return pol_conf
 
     def __smb_mkdir_p(self, path):
         directory = os.path.dirname(path.replace('\\', '/')).replace('/', '\\')
