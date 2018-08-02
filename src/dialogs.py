@@ -95,39 +95,57 @@ class GPME:
     def __button_entry(self, k, values, value):
         return TextEntry(Id('entry_%s' % k), Opt('hstretch'), values[k]['title'], value)
 
-    def __label_display(self, k, values, value):
-        return Label('%s: %s' % (values[k]['title'], values[k]['valstr'](value)))
+    def __label_display(self, k, values, value, detail_desc):
+        ret = Label('%s: %s' % (values[k]['title'], values[k]['valstr'](value)))
+        if detail_desc:
+            ret = MinHeight(20, MinWidth(50, RichText(detail_desc.replace('\n', '<br/>'))))
+        return ret
 
     def __change_values_prompt(self, values):
         items = []
+        vertical = True
+        reverse = False
+        title = None
         ckey = cmp_to_key(lambda a,b : a[-1]['order']-b[-1]['order'])
         for value in sorted(values.items(), key=ckey):
             k = value[0]
             if not value[-1]['input']:
                 continue
             if value[-1]['input']['type'] == 'TextEntry':
-                items.append(Left(
+                items.append(Top(MinWidth(30, Left(
                     ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
-                ))
+                ))))
             elif value[-1]['input']['type'] == 'ComboBox':
                 combo_options = []
                 current = value[-1]['valstr'](value[-1]['get'])
                 for sk in value[-1]['input']['options'].keys():
                     combo_options.append(Item(sk, current == sk))
-                items.append(Left(ComboBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], combo_options)))
+                items.append(Top(MinWidth(30, Left(ComboBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], combo_options)))))
             elif value[-1]['input']['type'] == 'Label':
+                if value[-1]['input']['options']:
+                    vertical = False
+                    reverse = True
+                    title = values[k]['valstr'](value[-1]['get'] if value[-1]['get'] else '')
                 items.append(Left(
-                    ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '')),
+                    ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '', value[-1]['input']['options'])),
                 ))
             elif value[-1]['input']['type'] == 'ButtonEntry':
-                items.append(Left(
+                items.append(Top(MinWidth(30, Left(
                     VBox(
                         ReplacePoint(Id('button_entry_%s' % k), self.__button_entry(k, values, value[-1]['get'] if value[-1]['get'] else '')),
                         PushButton(Id('select_entry_%s' % k), 'Select'),
                     )
-                ))
+                ))))
+        if reverse:
+            items.reverse()
         items = tuple(items)
-        return VBox(*items)
+        if vertical:
+            ret = VBox(*items)
+        else:
+            ret = HBox(*items)
+        if title:
+            ret = VBox(Left(Heading(title)), ret)
+        return ret
 
     def __change_setting(self, values):
         contents = MinWidth(30, HBox(HSpacing(), VBox(
@@ -250,7 +268,7 @@ class GPME:
                                     'valstr' : (lambda v : v),
                                     'input' : {
                                         'type' : 'Label',
-                                        'options' : None,
+                                        'options' : desc,
                                     },
                                 },
                                 'value' : {
@@ -269,8 +287,7 @@ class GPME:
                             if policy.find('parentCategory').attrib['ref'] != parent:
                                 continue
                             disp = fetch_attr(policy, 'displayName', strings, presentations)
-                            #desc = fetch_attr(policy, 'explainText', strings, presentations)
-                            desc = ''
+                            desc = fetch_attr(policy, 'explainText', strings, presentations)
                             values[disp] = {}
                             values[disp]['values'] = Policies[parent]['values'](
                                 conf, policy.attrib['key'], disp, desc, (lambda v : v),
