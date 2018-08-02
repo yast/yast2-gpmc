@@ -136,6 +136,14 @@ class GPME:
                         PushButton(Id('select_entry_%s' % k), 'Select'),
                     )
                 ))))
+            elif value[-1]['input']['type'] == 'IntField':
+                items.append(Top(MinWidth(30, Left(
+                    ReplacePoint(Id('int_field_%s' % k), IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0))
+                ))))
+            elif value[-1]['input']['type'] == 'CheckBox':
+                items.append(Top(Left(
+                    ReplacePoint(Id('check_box_%s' % k), CheckBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], bool(value[-1]['get']) if value[-1]['get'] else False))
+                )))
         if reverse:
             items.reverse()
         items = tuple(items)
@@ -273,7 +281,7 @@ class GPME:
                                 },
                                 'value' : {
                                     'order' : 1,
-                                    'title' : 'Value',
+                                    'title' : key,
                                     'get' : conf[reg_key][key] if reg_key in conf and key in conf[reg_key] else '',
                                     'set' : (lambda v : None),
                                     'valstr' : valstr,
@@ -289,10 +297,21 @@ class GPME:
                             disp = fetch_attr(policy, 'displayName', strings, presentations)
                             desc = fetch_attr(policy, 'explainText', strings, presentations)
                             values[disp] = {}
+                            val_type = None
+                            elements = policy.find('elements')
+                            if elements.find('text') is not None:
+                                val_type = 'TextEntry'
+                                val_str = (lambda v : v if v else 'Not Defined')
+                            elif elements.find('decimal') is not None:
+                                val_type = 'IntField'
+                                val_str = (lambda v : v if v else 'Not Defined')
+                            elif elements.find('boolean') is not None:
+                                val_type = 'CheckBox'
+                                val_str = (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled')
                             values[disp]['values'] = Policies[parent]['values'](
-                                conf, policy.attrib['key'], disp, desc, (lambda v : v),
+                                conf, policy.attrib['key'], disp, desc, val_str,
                                 {
-                                    'type' : 'TextEntry',
+                                    'type' : val_type,
                                     'options' : None,
                                 },
                             )
