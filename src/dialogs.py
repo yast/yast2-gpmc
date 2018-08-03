@@ -282,7 +282,7 @@ class GPME:
                                 'value' : {
                                     'order' : 1,
                                     'title' : key,
-                                    'get' : conf[reg_key][key] if reg_key in conf and key in conf[reg_key] else '',
+                                    'get' : conf[reg_key][key]['value'] if reg_key in conf and key in conf[reg_key] else '',
                                     'set' : (lambda v : None),
                                     'valstr' : valstr,
                                     'input' : _input,
