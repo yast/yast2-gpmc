@@ -22,6 +22,9 @@ have_advanced_gui = have_x()
 
 selected_gpo = None
 
+def set_admx_value(conf, reg_key, key, val):
+    conf[reg_key][key]['value'] = val
+
 class GPME:
     def __init__(self, lp, creds):
         global selected_gpo
@@ -122,12 +125,12 @@ class GPME:
                     combo_options.append(Item(sk, current == sk))
                 items.append(Top(MinWidth(30, Left(ComboBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], combo_options)))))
             elif value[-1]['input']['type'] == 'Label':
-                if value[-1]['input']['options']:
+                if 'description' in value[-1]['input'] and value[-1]['input']['description']:
                     vertical = False
                     reverse = True
                     title = values[k]['valstr'](value[-1]['get'] if value[-1]['get'] else '')
                 items.append(Left(
-                    ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '', value[-1]['input']['options'])),
+                    ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '', value[-1]['input']['description'] if 'description' in value[-1]['input'] else None)),
                 ))
             elif value[-1]['input']['type'] == 'ButtonEntry':
                 items.append(Top(MinWidth(30, Left(
@@ -276,14 +279,15 @@ class GPME:
                                     'valstr' : (lambda v : v),
                                     'input' : {
                                         'type' : 'Label',
-                                        'options' : desc,
+                                        'options' : None,
+                                        'description' : desc,
                                     },
                                 },
                                 'value' : {
                                     'order' : 1,
                                     'title' : key,
                                     'get' : conf[reg_key][key]['value'] if reg_key in conf and key in conf[reg_key] else '',
-                                    'set' : (lambda v : None),
+                                    'set' : (lambda v : set_admx_value(conf, reg_key, key, v)),
                                     'valstr' : valstr,
                                     'input' : _input,
                                 },
