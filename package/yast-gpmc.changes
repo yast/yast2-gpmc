@@ -1,0 +1,15 @@
+-------------------------------------------------------------------
+Tue Aug  7 19:11:23 UTC 2018 - dmulder@suse.com
+
+- v1.4: Adds admx template support
+
+-------------------------------------------------------------------
+Tue May 29 20:12:50 UTC 2018 - dmulder@suse.com
+
+- v1.3.1: Lots of improvements and fixes, py3 compatability, etc.
+
+-------------------------------------------------------------------
+Fri Nov 17 15:09:11 UTC 2017 - dmulder@suse.com
+
+- v1.0
+
