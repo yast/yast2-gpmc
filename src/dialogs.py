@@ -76,7 +76,9 @@ class GPME:
                             if values[k]['input']['options']:
                                 value = values[k]['input']['options'][value.strip()]
                             if values[k]['set']:
-                                values[k]['set'](value.strip())
+                                if type(value) is str:
+                                    value = value.strip()
+                                values[k]['set'](value)
                         self.conn.write(Policies[policy]['file'], conf)
                         if Policies[policy]['gpe_extension']:
                             self.conn.update_machine_gpe_ini(Policies[policy]['gpe_extension'])
