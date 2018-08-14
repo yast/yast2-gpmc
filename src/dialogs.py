@@ -335,11 +335,11 @@ class GPME:
         computer_config = [
             Item('Policies', False,
                 [
-                    Item('Software Settings', False,
-                        [
-                            Item(Id('comp_software_install'), 'Software installation', False, []),
-                        ]
-                    ),
+                    #Item('Software Settings', False,
+                    #    [
+                    #        Item(Id('comp_software_install'), 'Software installation', False, []),
+                    #    ]
+                    #),
                     Item('OS Settings', False,
                         [
                             Item('Scripts', False,
@@ -366,15 +366,15 @@ class GPME:
                     ),
                 ]
             ),
-            Item('Preferences', False,
-                [
-                    Item('OS Settings', False,
-                        [
-                            Item(Id('comp_env_var'), 'Environment', False, []),
-                        ]
-                    ),
-                ]
-            ),
+            #Item('Preferences', False,
+            #    [
+            #        Item('OS Settings', False,
+            #            [
+            #                Item(Id('comp_env_var'), 'Environment', False, []),
+            #            ]
+            #        ),
+            #    ]
+            #),
         ]
 
         user_config = [
