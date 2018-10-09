@@ -34,6 +34,7 @@ class GPME:
         global have_advanced_gui
         if not have_advanced_gui:
             Wizard.RestoreNextButton()
+        UI.SetApplicationTitle('Group Policy Management Editor')
         Wizard.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', '', 'Close')
         if have_advanced_gui:
             Wizard.HideNextButton()
@@ -66,6 +67,7 @@ class GPME:
                     values = Policies[policy]['opts'](conf)[selection]['values']
                 elif str(ret) == 'add_policy':
                     values = Policies[policy]['add'](conf)
+                UI.SetApplicationTitle('%s Properties' % selection)
                 UI.OpenDialog(self.__change_setting(values))
                 while True:
                     subret = UI.UserInput()
@@ -91,6 +93,7 @@ class GPME:
                         continue
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
+                        UI.SetApplicationTitle('Group Policy Management Editor')
                         break
                 UI.ReplaceWidget('rightPane', self.__display_policy(policy))
                 UI.SetFocus(str(ret))
@@ -444,6 +447,7 @@ class GPMC:
 
     def __get_creds(self, creds):
         if not creds.get_password():
+            UI.SetApplicationTitle('Authenticate')
             UI.OpenDialog(self.__password_prompt(creds.get_username()))
             while True:
                 subret = UI.UserInput()
@@ -481,6 +485,7 @@ class GPMC:
         return fgpo
 
     def add_gpo(self, container=None):
+        UI.SetApplicationTitle('New GPO')
         UI.OpenDialog(self.__name_gpo())
         sret = UI.UserInput()
         if str(sret) == 'ok_name_gpo':
@@ -493,6 +498,7 @@ class GPMC:
             self.gpos = []
 
     def del_gpo(self, displayName):
+        UI.SetApplicationTitle('Group Policy Management')
         UI.OpenDialog(self.__request_delete_gpo())
         sret = UI.UserInput()
         if str(sret) == 'delete_gpo':
@@ -504,6 +510,7 @@ class GPMC:
             self.gpos = []
 
     def del_link(self, child, parent):
+        UI.SetApplicationTitle('Group Policy Management')
         UI.OpenDialog(self.__request_delete_link())
         sret = UI.UserInput()
         if str(sret) == 'delete_link':
@@ -520,6 +527,7 @@ class GPMC:
             Wizard.RestoreBackButton()
             Wizard.RestoreNextButton()
             Wizard.RestoreAbortButton()
+        UI.SetApplicationTitle('Group Policy Management Console')
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
         if have_advanced_gui:
             Wizard.HideAbortButton()
