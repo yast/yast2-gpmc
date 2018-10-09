@@ -23,8 +23,7 @@ import struct
 from samba import registry
 from collections import OrderedDict
 
-PY3 = sys.version_info[0] == 3
-PY2 = sys.version_info[0] == 2
+import six
 
 class LdapException(Exception):
     def __init__(self, *args, **kwargs):
@@ -82,7 +81,7 @@ def ldap_delete(l, *args):
         ycpbuiltins.y2error('ldap.delete_s: %s\n' % _ldap_exc_msg(e))
 
 def open_bytes(filename):
-    if PY3:
+    if six.PY3:
         return open(filename, errors='ignore')
     else:
         return open(filename, 'rb')
@@ -118,9 +117,9 @@ def stringify_ldap(data):
         for item in data:
             new_tuple.append(stringify_ldap(item))
         return tuple(new_tuple)
-    elif PY2 and type(data) == unicode:
+    elif six.PY2 and type(data) == unicode:
         return str(data)
-    elif PY3 and type(data) == bytes:
+    elif six.PY3 and type(data) == bytes:
         try:
             return data.decode('utf-8')
         except UnicodeDecodeError:
@@ -696,7 +695,7 @@ class GPOConnection(GPConnection):
                 ycpbuiltins.y2error(str(e))
                 policy = ''
             inf_conf.optionxform=str
-            if PY3 and type(policy) is str:
+            if six.PY3 and type(policy) is str:
                 inf_conf.readfp(StringIO(policy))
             else:
                 try:
@@ -752,7 +751,7 @@ class GPOConnection(GPConnection):
         path = '\\'.join([self.path, filename])
         filedir = os.path.dirname((path).replace('\\', '/')).replace('/', '\\')
         self.__smb_mkdir_p(filedir)
-        if PY3 and type(text) is str:
+        if six.PY3 and type(text) is str:
             text = text.encode('utf-8')
         try:
             self.conn.savefile(path, text)
@@ -782,7 +781,7 @@ class GPOConnection(GPConnection):
         if os.path.exists(local):
             value = open_bytes(local).read()
             filename = '\\'.join([remote_path, os.path.basename(local)])
-            if PY3 and type(value) is str:
+            if six.PY3 and type(value) is str:
                 value = value.encode('utf-8')
             try:
                 self.conn.savefile(filename, value)
