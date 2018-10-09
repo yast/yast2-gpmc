@@ -26,16 +26,15 @@ Url:            http://www.github.com/dmulder/yast-gpmc
 Source:         %{name}-%{version}.tar.gz
 BuildArch:      noarch
 Requires:       krb5-client
-Requires:       python-configparser
-Requires:       python-ldap
+Requires:       python3-ldap
 Requires:       samba-client
-Requires:       samba-python
+Requires:       samba-python3
 Requires:       yast2
-Requires:       yast2-python-bindings >= 4.0.0
+Requires:       yast2-python3-bindings >= 4.0.0
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  perl-XML-Writer
-BuildRequires:  python
+BuildRequires:  python3
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
