@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from defaults import Policies, fetch_inf_value
-from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink
+from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink, strcmp, strcasecmp
 from yast import import_module
 import_module('Wizard')
 import_module('UI')
@@ -119,17 +119,17 @@ class GPME:
             k = value[0]
             if not value[-1]['input']:
                 continue
-            if value[-1]['input']['type'] == 'TextEntry':
+            if strcmp(value[-1]['input']['type'], 'TextEntry'):
                 items.append(Top(MinWidth(30, Left(
                     ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
                 ))))
-            elif value[-1]['input']['type'] == 'ComboBox':
+            elif strcmp(value[-1]['input']['type'], 'ComboBox'):
                 combo_options = []
                 current = value[-1]['valstr'](value[-1]['get'])
                 for sk in value[-1]['input']['options'].keys():
-                    combo_options.append(Item(sk, current == sk))
+                    combo_options.append(Item(sk, strcmp(current, sk)))
                 items.append(Top(MinWidth(30, Left(ComboBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], combo_options)))))
-            elif value[-1]['input']['type'] == 'Label':
+            elif strcmp(value[-1]['input']['type'], 'Label'):
                 if 'description' in value[-1]['input'] and value[-1]['input']['description']:
                     vertical = False
                     reverse = True
@@ -137,18 +137,18 @@ class GPME:
                 items.append(Left(
                     ReplacePoint(Id('label_%s' % k), self.__label_display(k, values, value[-1]['get'] if value[-1]['get'] else '', value[-1]['input']['description'] if 'description' in value[-1]['input'] else None)),
                 ))
-            elif value[-1]['input']['type'] == 'ButtonEntry':
+            elif strcmp(value[-1]['input']['type'], 'ButtonEntry'):
                 items.append(Top(MinWidth(30, Left(
                     VBox(
                         ReplacePoint(Id('button_entry_%s' % k), self.__button_entry(k, values, value[-1]['get'] if value[-1]['get'] else '')),
                         PushButton(Id('select_entry_%s' % k), 'Select'),
                     )
                 ))))
-            elif value[-1]['input']['type'] == 'IntField':
+            elif strcmp(value[-1]['input']['type'], 'IntField'):
                 items.append(Top(MinWidth(30, Left(
                     ReplacePoint(Id('int_field_%s' % k), IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0))
                 ))))
-            elif value[-1]['input']['type'] == 'CheckBox':
+            elif strcmp(value[-1]['input']['type'], 'CheckBox'):
                 items.append(Top(Left(
                     ReplacePoint(Id('check_box_%s' % k), CheckBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], bool(value[-1]['get']) if value[-1]['get'] else False))
                 )))
@@ -227,16 +227,16 @@ class GPME:
         def fetch_attr(obj, attr, strings, presentations):
             val = obj.attrib[attr]
             m = re.match('\$\((\w*).(\w*)\)', val)
-            if m and m.group(1) == 'string':
+            if m and strcmp(m.group(1), 'string'):
                 val = strings.find('string[@id="%s"]' % m.group(2)).text
-            elif m and m.group(1) == 'presentation':
+            elif m and strcmp(m.group(1), 'presentation'):
                 val = presentations.find('presentation[@id="%s"]' % m.group(2)).text
             return val
 
         for f in self.conn.list('../PolicyDefinitions/'):
             fname = os.path.join('../PolicyDefinitions/', f['name'])
             fparts = os.path.splitext(fname)
-            if fparts[-1].lower() == '.admx':
+            if strcasecmp(fparts[-1].lower(), '.admx'):
                 admx = self.conn.parse(fname)
                 dirname = os.path.dirname(fparts[0])
                 basename = os.path.basename(fparts[0])
@@ -481,7 +481,7 @@ class GPMC:
     def __find_gpo(self, gpo_guid):
         fgpo = None
         for gpo in self.gpos:
-            if gpo[1]['name'][-1] == gpo_guid:
+            if strcasecmp(gpo[1]['name'][-1], gpo_guid):
                 fgpo = gpo
                 break
         return fgpo
@@ -740,13 +740,13 @@ class GPMC:
     def __details_page(self, gpo_guid):
         global selected_gpo
         status_selection = [False, False, False, False]
-        if selected_gpo[1]['flags'][-1] == '0':
+        if strcmp(selected_gpo[1]['flags'][-1], '0'):
             status_selection[2] = True
-        elif selected_gpo[1]['flags'][-1] == '1':
+        elif strcmp(selected_gpo[1]['flags'][-1], '1'):
             status_selection[3] = True
-        elif selected_gpo[1]['flags'][-1] == '2':
+        elif strcmp(selected_gpo[1]['flags'][-1], '2'):
             status_selection[1] = True
-        elif selected_gpo[1]['flags'][-1] == '3':
+        elif strcmp(selected_gpo[1]['flags'][-1], '3'):
             status_selection[0] = True
         combo_options = [Item('All settings disabled', status_selection[0]), Item('Computer configuration settings disabled', status_selection[1]), Item('Enabled', status_selection[2]), Item('User configuration settings disabled', status_selection[3])]
 
@@ -855,13 +855,13 @@ class GPMC:
         contents = []
         for gpo in self.q.get_gpos_for_container(dn):
             status = ''
-            if gpo[1]['flags'][-1] == '0':
+            if strcmp(gpo[1]['flags'][-1], '0'):
                 status = 'Enabled'
-            elif gpo[1]['flags'][-1] == '1':
+            elif strcmp(gpo[1]['flags'][-1], '1'):
                 status = 'User configuration settings disabled'
-            elif gpo[1]['flags'][-1] == '2':
+            elif strcmp(gpo[1]['flags'][-1], '2'):
                 status = 'Computer configuration settings disabled'
-            elif gpo[1]['flags'][-1] == '3':
+            elif strcmp(gpo[1]['flags'][-1], '3'):
                 status = 'All settings disabled'
             vals = Item('', gpo[1]['displayName'][-1], '', '', status, '', self.__ms_time_to_readable(gpo[1]['whenChanged'][-1]), '')
             contents.append(vals)

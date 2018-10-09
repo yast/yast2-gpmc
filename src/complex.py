@@ -25,6 +25,22 @@ from collections import OrderedDict
 
 import six
 
+def strcmp(first, second):
+    if six.PY3:
+        if isinstance(first, six.string_types):
+            first = six.binary_type(first, 'utf8')
+        if isinstance(second, six.string_types):
+            second = six.binary_type(second, 'utf8')
+    return first == second
+
+def strcasecmp(first, second):
+    if six.PY3:
+        if isinstance(first, six.string_types):
+            first = six.binary_type(first, 'utf8')
+        if isinstance(second, six.string_types):
+            second = six.binary_type(second, 'utf8')
+    return first.lower() == second.lower()
+
 class LdapException(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
@@ -306,13 +322,13 @@ class GPConnection:
 
     def __well_known_container(self, container):
         res = None
-        if container == 'system':
+        if strcmp(container, 'system'):
             wkguiduc = 'AB1D30F3768811D1ADED00C04FD8D5CD'
-        elif container == 'computers':
+        elif strcmp(container, 'computers'):
             wkguiduc = 'AA312825768811D1ADED00C04FD8D5CD'
-        elif container == 'dcs':
+        elif strcmp(container, 'dcs'):
             wkguiduc = 'A361B2FFFFD211D1AA4B00C04FD7D83A'
-        elif container == 'users':
+        elif strcmp(container, 'users'):
             wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
         result = ldap_search(self.l, '<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', stringify_ldap(['distinguishedName']))
         result = stringify_ldap(result)
@@ -393,7 +409,7 @@ class GPConnection:
             existing_gplink = True
             found = False
             for g in gplist:
-                if g['dn'].lower() == gpo_dn.lower():
+                if strcasecmp(g['dn'], gpo_dn):
                     found = True
                     break
             if found:
@@ -424,7 +440,7 @@ class GPConnection:
             gplist = parse_gplink(msg['gPLink'][0])
             gplist = [gplist[k] for k in gplist]
             for g in gplist:
-                if g['dn'].lower() == gpo_dn.lower():
+                if strcasecmp(g['dn'], gpo_dn):
                     gplist.remove(g)
                     found = True
                     break
@@ -645,9 +661,9 @@ class GPOConnection(GPConnection):
         try:
             ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
         except LdapException as e:
-            if e.msg == 'No such object':
+            if strcmp(e.msg, 'No such object'):
                 self.__mkdn_p(','.join(dn.split(',')[1:]))
-            elif e.msg == 'Already exists':
+            elif strcmp(e.msg, 'Already exists'):
                 return
             else:
                 ycpbuiltins.y2error(traceback.format_exc())
@@ -655,7 +671,7 @@ class GPOConnection(GPConnection):
         try:
             ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
         except LdapException as e:
-            if e.msg != 'Already exists':
+            if not strcmp(e.msg, 'Already exists'):
                 ycpbuiltins.y2error(traceback.format_exc())
                 ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
@@ -671,13 +687,13 @@ class GPOConnection(GPConnection):
             try:
                 ldap_add(self.l, obj_dn, addlist(stringify_ldap(ldap_config[cn])))
             except LdapException as e:
-                if e.msg == 'Already exists':
+                if strcmp(e.msg, 'Already exists'):
                     ldap_modify(self.l, obj_dn, modlist({}, stringify_ldap(ldap_config[cn])))
                 else:
                     ycpbuiltins.y2error(traceback.format_exc())
                     ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
 
-            if os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1] == b'.zap':
+            if strcmp(os.path.splitext(ldap_config[cn]['msiFileList'][-1])[-1], b'.zap'):
                 inf_conf = self.__parse_inf(ldap_config[cn]['msiFileList'][-1])
                 if not inf_conf.has_section('Application'):
                     inf_conf.add_section('Application')
