@@ -261,7 +261,7 @@ class GPConnection:
         self.__ldap_connect()
 
     def __kinit_for_gssapi(self):
-        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
+        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         p.stdin.write(('%s\n' % self.creds.get_password()).encode())
         p.stdin.flush()
         self.kinit = p.wait() == 0
@@ -491,6 +491,7 @@ class GPConnection:
             self.l.sasl_interactive_bind_s('', auth_tokens)
         else:
             ycpbuiltins.y2error('Failed to initialize ldap connection')
+            raise Exception('Failed to initialize ldap connection')
 
     def ldap_search_s(self, *args):
         try:
