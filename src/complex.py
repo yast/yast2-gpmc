@@ -53,49 +53,6 @@ class LdapException(Exception):
         else:
             self.info = None
 
-def _ldap_exc_msg(e):
-    if len(e.args) > 0 and \
-      type(e.args[-1]) is dict and \
-      'desc' in e.args[-1]:
-        return e.args[-1]['desc']
-    else:
-        return str(e)
-
-def _ldap_exc_info(e):
-    if len(e.args) > 0 and \
-      type(e.args[-1]) is dict and \
-      'info' in e.args[-1]:
-        return e.args[-1]['info']
-    else:
-        return ''
-
-def ldap_search(l, *args):
-    try:
-        return l.search_s(*args)
-    except Exception as e:
-        ycpbuiltins.y2error(traceback.format_exc())
-        ycpbuiltins.y2error('ldap.search_s: %s\n' % _ldap_exc_msg(e))
-
-def ldap_add(l, *args):
-    try:
-        return l.add_s(*args)
-    except Exception as e:
-        raise LdapException(_ldap_exc_msg(e), _ldap_exc_info(e))
-
-def ldap_modify(l, *args):
-    try:
-        return l.modify(*args)
-    except Exception as e:
-        ycpbuiltins.y2error(traceback.format_exc())
-        ycpbuiltins.y2error('ldap.modify: %s\n' % _ldap_exc_msg(e))
-
-def ldap_delete(l, *args):
-    try:
-        return l.delete_s(*args)
-    except Exception as e:
-        ycpbuiltins.y2error(traceback.format_exc())
-        ycpbuiltins.y2error('ldap.delete_s: %s\n' % _ldap_exc_msg(e))
-
 def open_bytes(filename):
     if six.PY3:
         return open(filename, errors='ignore')
@@ -299,23 +256,16 @@ class GPConnection:
     def __init__(self, lp, creds):
         self.lp = lp
         self.creds = creds
-        net = Net(creds=creds, lp=lp)
-        cldap_ret = net.finddc(domain=lp.get('realm'), flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS | nbt.NBT_SERVER_WRITABLE))
-        self.realm = cldap_ret.dns_domain
-        self.dc_hostname = cldap_ret.pdc_dns_name
-        self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
-        if self.__kinit_for_gssapi():
-            auth_tokens = ldap.sasl.gssapi('')
-            self.l.sasl_interactive_bind_s('', auth_tokens)
-        else:
-            self.l.bind_s('%s@%s' % (creds.get_username(), self.realm) if not self.realm in creds.get_username() else creds.get_username(), creds.get_password())
-        self.l.set_option(ldap.OPT_REFERRALS,0)
+        self.realm = lp.get('realm')
+        self.kinit = False
+        self.__ldap_connect()
 
     def __kinit_for_gssapi(self):
-        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        p.stdin.write(('%s\n'%self.creds.get_password()).encode())
+        p = Popen(['kinit', '%s@%s' % (self.creds.get_username(), self.realm) if not self.realm in self.creds.get_username() else self.creds.get_username()], stdin=PIPE, stdout=PIPE)
+        p.stdin.write(('%s\n' % self.creds.get_password()).encode())
         p.stdin.flush()
-        return p.wait() == 0
+        self.kinit = p.wait() == 0
+        return self.kinit
 
     def realm_to_dn(self, realm):
         return ','.join(['DC=%s' % part for part in realm.lower().split('.')])
@@ -330,7 +280,7 @@ class GPConnection:
             wkguiduc = 'A361B2FFFFD211D1AA4B00C04FD7D83A'
         elif strcmp(container, 'users'):
             wkguiduc = 'A9D1CA15768811D1ADED00C04FD8D5CD'
-        result = ldap_search(self.l, '<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', stringify_ldap(['distinguishedName']))
+        result = self.ldap_search_s('<WKGUID=%s,%s>' % (wkguiduc, self.realm_to_dn(self.realm)), ldap.SCOPE_SUBTREE, '(objectClass=container)', stringify_ldap(['distinguishedName']))
         result = stringify_ldap(result)
         if result and len(result) > 0 and len(result[0]) > 1 and 'distinguishedName' in result[0][1] and len(result[0][1]['distinguishedName']) > 0:
             res = result[0][1]['distinguishedName'][-1]
@@ -338,11 +288,11 @@ class GPConnection:
         return stringify_ldap(res)
 
     def user_from_sid(self, sid, attrs=[]):
-        res = ldap_search(self.l, self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, stringify_ldap(attrs))
+        res = self.ldap_search(self.__well_known_container('users'), ldap.SCOPE_SUBTREE, '(objectSID=%s)' % sid, stringify_ldap(attrs))
         return res[0][1]
 
     def get_domain_sid(self):
-        res = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
+        res = self.ldap_search(self.realm_to_dn(self.realm), ldap.SCOPE_BASE, "(objectClass=*)", [])
         return ndr_unpack(security.dom_sid, res[0][1]["objectSid"][0])
 
     def gpo_list(self, displayName=None, attrs=[]):
@@ -351,12 +301,12 @@ class GPConnection:
         search_expr = '(objectClass=groupPolicyContainer)'
         if displayName is not None:
             search_expr = '(&(objectClass=groupPolicyContainer)(displayname=%s))' % ldb.binary_encode(displayName)
-        result = ldap_search(self.l, res, ldap.SCOPE_SUBTREE, search_expr, stringify_ldap(attrs))
+        result = self.ldap_search(res, ldap.SCOPE_SUBTREE, search_expr, stringify_ldap(attrs))
         result = stringify_ldap(result)
         return result
 
     def set_attr(self, dn, key, value):
-        ldap_modify(self.l, dn, stringify_ldap([(1, key, None), (0, key, value)]))
+        self.ldap_modify(dn, stringify_ldap([(1, key, None), (0, key, value)]))
 
     def create_gpo(self, displayName, container=None):
         msg = self.gpo_list(displayName)
@@ -378,9 +328,9 @@ class GPConnection:
 
         gpo = GPOConnection(self.lp, self.creds, unc_path)
         try:
-            ldap_add(self.l, dn, addlist(stringify_ldap(ldap_mod)))
-            ldap_add(self.l, machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
-            ldap_add(self.l, user_dn, addlist(stringify_ldap(sub_ldap_mod)))
+            self.ldap_add(dn, addlist(stringify_ldap(ldap_mod)))
+            self.ldap_add(machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
+            self.ldap_add(user_dn, addlist(stringify_ldap(sub_ldap_mod)))
         except LdapException as e:
             ycpbuiltins.y2error(traceback.format_exc())
             ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
@@ -396,10 +346,9 @@ class GPConnection:
             gplink_options |= (1 << 1)
 
         # Check if valid Container DN
-        msg = ldap_search(self.l,
-                         container_dn, ldap.SCOPE_BASE,
-                         "(objectClass=*)",
-                         stringify_ldap(['gPLink']))[0][1]
+        msg = self.ldap_search(container_dn, ldap.SCOPE_BASE,
+                               "(objectClass=*)",
+                               stringify_ldap(['gPLink']))[0][1]
 
         # Update existing GPlinks or Add new one
         existing_gplink = False
@@ -424,16 +373,15 @@ class GPConnection:
         gplink_str = encode_gplink(gplist)
 
         if existing_gplink:
-            ldap_modify(self.l, container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
+            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
         else:
-            ldap_modify(self.l, container_dn, stringify_ldap([(0, 'gPLink', [gplink_str.encode('utf-8')])]))
+            self.ldap_modify(container_dn, stringify_ldap([(0, 'gPLink', [gplink_str.encode('utf-8')])]))
 
     def delete_link(self, gpo_dn, container_dn):
         # Check if valid Container DN
-        msg = ldap_search(self.l,
-                         container_dn, ldap.SCOPE_BASE,
-                         "(objectClass=*)",
-                         stringify_ldap(['gPLink']))[0][1]
+        msg = self.ldap_search(container_dn, ldap.SCOPE_BASE,
+                               "(objectClass=*)",
+                               stringify_ldap(['gPLink']))[0][1]
 
         found = False
         if 'gPLink' in msg:
@@ -452,9 +400,9 @@ class GPConnection:
 
         if gplist:
             gplink_str = encode_gplink(gplist)
-            ldap_modify(self.l, container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])]))
+            self.ldap_modify(container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])]))
         else:
-            ldap_modify(self.l, container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None)]))
+            self.ldap_modify(container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None)]))
 
     def delete_gpo(self, displayName):
         msg = self.gpo_list(displayName)
@@ -470,9 +418,9 @@ class GPConnection:
             self.delete_link(gpo_dn, container['distinguishedName'][0].decode())
 
         # Remove LDAP entries
-        ldap_delete(self.l, "CN=User,%s" % str(gpo_dn))
-        ldap_delete(self.l, "CN=Machine,%s" % str(gpo_dn))
-        ldap_delete(self.l, gpo_dn)
+        self.ldap_delete("CN=User,%s" % str(gpo_dn))
+        self.ldap_delete("CN=Machine,%s" % str(gpo_dn))
+        self.ldap_delete(gpo_dn)
         try:
             # Remove GPO files
             gpo = GPOConnection(self.lp, self.creds, unc_path)
@@ -485,7 +433,7 @@ class GPConnection:
         '''lists dn of containers for a GPO'''
 
         search_expr = "(&(objectClass=*)(gPLink=*%s*))" % gpo
-        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        msg = self.ldap_search(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         if not msg:
             return []
 
@@ -493,7 +441,7 @@ class GPConnection:
 
     def get_gpos_for_container(self, container_dn):
         search_expr = '(distinguishedName=%s)' % container_dn
-        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        msg = self.ldap_search(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         if not msg:
             return None
 
@@ -504,22 +452,116 @@ class GPConnection:
             gpos = []
         for gpo in gpos:
             search_expr = '(distinguishedName=%s)' % gpos[gpo]['dn']
-            msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+            msg = self.ldap_search(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
             results.append(msg[0])
 
         return results
 
     def get_containers_with_gpos(self):
         search_expr = "(|(objectClass=organizationalUnit)(objectClass=domain))"
-        msg = ldap_search(self.l, self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
+        msg = self.ldap_search(self.realm_to_dn(self.realm), ldap.SCOPE_SUBTREE, search_expr, [])
         if not msg:
             return []
 
         return [res[1] for res in msg if type(res[1]) is dict]
 
+    def __ldap_exc_msg(self, e):
+        if len(e.args) > 0 and \
+          type(e.args[-1]) is dict and \
+          'desc' in e.args[-1]:
+            return e.args[-1]['desc']
+        else:
+            return str(e)
+
+    def __ldap_exc_info(self, e):
+        if len(e.args) > 0 and \
+          type(e.args[-1]) is dict and \
+          'info' in e.args[-1]:
+            return e.args[-1]['info']
+        else:
+            return ''
+
+    def __ldap_connect(self):
+        self.net = Net(creds=self.creds, lp=self.lp)
+        cldap_ret = self.net.finddc(domain=self.realm, flags=(nbt.NBT_SERVER_LDAP | nbt.NBT_SERVER_DS | nbt.NBT_SERVER_WRITABLE))
+        self.dc_hostname = cldap_ret.pdc_dns_name
+        self.l = ldap.initialize('ldap://%s' % cldap_ret.pdc_dns_name)
+        if self.kinit or self.__kinit_for_gssapi():
+            auth_tokens = ldap.sasl.gssapi('')
+            self.l.sasl_interactive_bind_s('', auth_tokens)
+        else:
+            ycpbuiltins.y2error('Failed to initialize ldap connection')
+
+    def ldap_search_s(self, *args):
+        try:
+            try:
+                return self.l.search_s(*args)
+            except ldap.SERVER_DOWN:
+                self.__ldap_connect()
+                return self.l.search_s(*args)
+        except Exception as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error('ldap.search_s: %s\n' % self.__ldap_exc_msg(e))
+
+    def ldap_search(self, *args):
+        result = []
+        try:
+            try:
+                res_id = self.l.search(*args)
+            except ldap.SERVER_DOWN:
+                self.__ldap_connect()
+                res_id = self.l.search(*args)
+            while 1:
+                t, d = self.l.result(res_id, 0)
+                if d == []:
+                    break
+                else:
+                    if t == ldap.RES_SEARCH_ENTRY:
+                        result.append(d[0])
+        except ldap.LDAPError:
+            pass
+        except Exception as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error('ldap.search: %s\n' % self.__ldap_exc_msg(e))
+        return result
+
+    def ldap_add(self, *args):
+        try:
+            try:
+                return self.l.add_s(*args)
+            except ldap.SERVER_DOWN:
+                self.__ldap_connect()
+                return self.l.add_s(*args)
+        except Exception as e:
+            raise LdapException(self.__ldap_exc_msg(e), self.__ldap_exc_info(e))
+
+    def ldap_modify(self, *args):
+        try:
+            try:
+                return self.l.modify(*args)
+            except ldap.SERVER_DOWN:
+                self.__ldap_connect()
+                return self.l.modify(*args)
+        except Exception as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error('ldap.modify: %s\n' % self.__ldap_exc_msg(e))
+
+    def ldap_delete(self, *args):
+        try:
+            try:
+                return self.l.delete_s(*args)
+            except ldap.SERVER_DOWN:
+                self.__ldap_connect()
+                return self.l.delete_s(*args)
+        except Exception as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error('ldap.delete_s: %s\n' % self.__ldap_exc_msg(e))
+
 class GPOConnection(GPConnection):
     def __init__(self, lp, creds, gpo_path):
         GPConnection.__init__(self, lp, creds)
+        if six.PY3 and isinstance(gpo_path, bytes):
+            gpo_path = gpo_path.decode()
         [dom_name, service, self.path] = parse_unc(gpo_path)
         path_parts = [n for n in gpo_path.split('\\') if n]
         self.path_start = '\\\\' + '\\'.join([dom_name, service])
@@ -647,7 +689,7 @@ class GPOConnection(GPConnection):
 
     def __parse_dn(self, dn):
         dn = dn % self.gpo_dn
-        resp = ldap_search(self.l, dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
+        resp = self.ldap_search(dn, ldap.SCOPE_SUBTREE, '(objectCategory=packageRegistration)', [])
         resp = stringify_ldap(resp)
         if resp:
             keys = ['objectClass', 'msiFileList', 'msiScriptPath', 'displayName', 'versionNumberHi', 'versionNumberLo']
@@ -659,7 +701,7 @@ class GPOConnection(GPConnection):
     def __mkdn_p(self, dn):
         attrs = { 'objectClass' : [b'top', b'container'] }
         try:
-            ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
+            self.ldap_add(dn, addlist(stringify_ldap(attrs)))
         except LdapException as e:
             if strcmp(e.msg, 'No such object'):
                 self.__mkdn_p(','.join(dn.split(',')[1:]))
@@ -669,7 +711,7 @@ class GPOConnection(GPConnection):
                 ycpbuiltins.y2error(traceback.format_exc())
                 ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
         try:
-            ldap_add(self.l, dn, addlist(stringify_ldap(attrs)))
+            self.ldap_add(dn, addlist(stringify_ldap(attrs)))
         except LdapException as e:
             if not strcmp(e.msg, 'Already exists'):
                 ycpbuiltins.y2error(traceback.format_exc())
@@ -685,10 +727,10 @@ class GPOConnection(GPConnection):
             self.__mkdn_p(','.join(obj_dn.split(',')[1:]))
             ldap_config[cn] = dict_to_bytes(ldap_config[cn])
             try:
-                ldap_add(self.l, obj_dn, addlist(stringify_ldap(ldap_config[cn])))
+                self.ldap_add(obj_dn, addlist(stringify_ldap(ldap_config[cn])))
             except LdapException as e:
                 if strcmp(e.msg, 'Already exists'):
-                    ldap_modify(self.l, obj_dn, modlist({}, stringify_ldap(ldap_config[cn])))
+                    self.ldap_modify(obj_dn, modlist({}, stringify_ldap(ldap_config[cn])))
                 else:
                     ycpbuiltins.y2error(traceback.format_exc())
                     ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
