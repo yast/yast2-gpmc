@@ -60,7 +60,7 @@ def iter_scripts_conf(inf_conf, section):
     if inf_conf.has_section(section):
         for option in inf_conf.options(section):
             if 'CmdLine' in option:
-                yield option.encode('ascii')
+                yield option
     else:
         for option in []:
             yield option
