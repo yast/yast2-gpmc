@@ -1,7 +1,13 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import ldap, ldap.modlist, ldap.sasl
 from samba import smb
-from configparser import ConfigParser
+import six
+if six.PY3:
+    def ConfigParser(defaults=None, dict_type=None, allow_no_value=None):
+        import configparser
+        return configparser.ConfigParser(defaults, dict_type, allow_no_value, interpolation=None)
+else:
+    from ConfigParser import ConfigParser
 from io import StringIO
 import xml.etree.ElementTree as etree
 import os.path, sys
@@ -22,8 +28,6 @@ from yast import ycpbuiltins
 import struct
 from samba import registry
 from collections import OrderedDict
-
-import six
 
 def strcmp(first, second):
     if six.PY3:
