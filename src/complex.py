@@ -3,9 +3,9 @@ import ldap, ldap.modlist, ldap.sasl
 from samba import smb
 import six
 if six.PY3:
-    def ConfigParser(defaults=None, dict_type=None, allow_no_value=None):
+    def ConfigParser(**kwargs):
         import configparser
-        return configparser.ConfigParser(defaults, dict_type, allow_no_value, interpolation=None)
+        return configparser.ConfigParser(interpolation=None, **kwargs)
 else:
     from ConfigParser import ConfigParser
 from io import StringIO
