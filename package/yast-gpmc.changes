@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Thu Nov  1 21:50:27 UTC 2018 - dmulder@suse.com
+
+- Disable experimental features in sle
+
+-------------------------------------------------------------------
 Tue Oct  9 21:14:26 UTC 2018 - dmulder@suse.com
 
 - v1.4.1: Switch package to py3
