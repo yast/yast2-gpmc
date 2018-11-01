@@ -49,7 +49,7 @@ modifying Group Policy Objects in Active Directory.
 
 %build
 autoreconf -if
-%configure --prefix=%{_prefix}
+%configure --prefix=%{_prefix} --enable-experimental
 make
 
 %install
