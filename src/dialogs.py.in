@@ -14,6 +14,8 @@ from samba.ntacls import dsacl2fsacl
 import os.path
 from itertools import chain
 
+ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
+
 def have_x():
     from subprocess import Popen, PIPE
     p = Popen(['xset', '-q'], stdout=PIPE, stderr=PIPE)
@@ -335,50 +337,68 @@ class GPME:
 
         admin_templates = self.__fetch_admin_templates()
 
-        computer_config = [
-            Item('Policies', False,
+        policy_items = []
+        if ENABLE_EXPERIMENTAL:
+            policy_items.append(
+                Item('Software Settings', False,
+                    [
+                        Item(Id('comp_software_install'), 'Software installation', False, []),
+                    ]
+                )
+            )
+        os_settings_items = []
+        if ENABLE_EXPERIMENTAL:
+            os_settings_items.append(
+                Item('Scripts', False,
+                    [
+                        Item(Id('comp_scripts_startup'), 'Startup', False, []),
+                        Item(Id('comp_scripts_shutdown'), 'Shutdown', False, []),
+                    ]
+                )
+            )
+        os_settings_items.append(
+            Item('Security Settings', False,
                 [
-                    #Item('Software Settings', False,
-                    #    [
-                    #        Item(Id('comp_software_install'), 'Software installation', False, []),
-                    #    ]
-                    #),
-                    Item('OS Settings', False,
+                    Item('Account Policy', False,
                         [
-                            Item('Scripts', False,
-                                [
-                                    Item(Id('comp_scripts_startup'), 'Startup', False, []),
-                                    Item(Id('comp_scripts_shutdown'), 'Shutdown', False, []),
-                                ]
-                            ),
-                            Item('Security Settings', False,
-                                [
-                                    Item('Account Policy', False,
-                                        [
-                                            Item(Id('comp_passwd'), 'Password Policy', False, []),
-                                            Item(Id('comp_lockout'), 'Account Lockout Policy', False, []),
-                                            Item(Id('comp_krb'), 'Kerberos Policy', False, []),
-                                        ]
-                                    ),
-                                ]
-                            ),
+                            Item(Id('comp_passwd'), 'Password Policy', False, []),
+                            Item(Id('comp_lockout'), 'Account Lockout Policy', False, []),
+                            Item(Id('comp_krb'), 'Kerberos Policy', False, []),
                         ]
                     ),
-                    Item('Administrative Templates', False,
-                        admin_templates
-                    ),
                 ]
+            )
+        )
+        policy_items.append(
+            Item('OS Settings', False,
+                    os_settings_items
+            )
+        )
+        if ENABLE_EXPERIMENTAL:
+            policy_items.append(
+                Item('Administrative Templates', False,
+                    admin_templates
+                )
+            )
+
+        computer_config = [
+            Item('Policies', False,
+                policy_items
             ),
-            #Item('Preferences', False,
-            #    [
-            #        Item('OS Settings', False,
-            #            [
-            #                Item(Id('comp_env_var'), 'Environment', False, []),
-            #            ]
-            #        ),
-            #    ]
-            #),
         ]
+
+        if ENABLE_EXPERIMENTAL:
+            computer_config.append(
+                Item('Preferences', False,
+                    [
+                        Item('OS Settings', False,
+                            [
+                                Item(Id('comp_env_var'), 'Environment', False, []),
+                            ]
+                        ),
+                    ]
+                )
+            )
 
         user_config = [
             Item('Policies', False,
@@ -403,15 +423,20 @@ class GPME:
             ),
         ]
 
-        contents = Tree(Id('gpme_tree'), Opt('notify'), selected_gpo[1]['displayName'][-1],
-            [
-                Item('Computer Configuration', True,
-                    computer_config
-                ),
+        items = [
+            Item('Computer Configuration', True,
+                computer_config
+            ),
+        ]
+        if ENABLE_EXPERIMENTAL:
+            items.append(
                 Item('User Configuration', True,
                     user_config
-                ),
-            ],
+                )
+            )
+
+        contents = Tree(Id('gpme_tree'), Opt('notify'), selected_gpo[1]['displayName'][-1],
+            items
         )
         return contents
 

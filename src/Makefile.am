@@ -25,10 +25,13 @@ moduledir = ${prefix}/share/YaST2/modules
 gpmc.py: gpmc.py.in
 	sed -e 's;[@]INCLUDEDIR[@];$(yncludedir);g' < $(srcdir)/gpmc.py.in > $(srcdir)/gpmc.py
 
+dialogs.py: dialogs.py.in
+	sed -e 's;[@]ENABLE_EXPERIMENTAL[@];$(experimental);g' < $(srcdir)/dialogs.py.in > $(srcdir)/dialogs.py
+
 # create a symlink for local build, #145327
 gpmc:
 	ln -sf . $@
 ycpchook = gpmc
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
-CLEANFILES = gpmc.py gpmc.desktop
+CLEANFILES = gpmc.py gpmc.desktop dialogs.py

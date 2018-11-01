@@ -20,6 +20,14 @@ AC_ARG_VAR([PKG_CONFIG_PATH], [where to search for pkg-config files])
 dnl devtools
 dnl ...
 
+AC_ARG_ENABLE([experimental], AS_HELP_STRING([--enable-experimental], [Enable experimental features]))
+
+if test "x$enable_experimental" = "xyes"; then
+AC_SUBST([experimental], ['True'])
+else
+AC_SUBST([experimental], ['False'])
+fi
+
 dnl no need for AC_ARG_VAR
 AC_PATH_PROG(XGETTEXT, xgettext)
 if test -z "$XGETTEXT" ; then
