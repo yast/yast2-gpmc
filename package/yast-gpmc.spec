@@ -49,7 +49,17 @@ modifying Group Policy Objects in Active Directory.
 
 %build
 autoreconf -if
-%configure --prefix=%{_prefix} --enable-experimental
+
+CONFIGURE_OPTIONS="\
+	--prefix=%{_prefix} \
+%if 0%{?is_opensuse}
+        --enable-experimental \
+%else
+        --disable-experimental \
+%endif
+"
+
+%configure ${CONFIGURE_OPTIONS}
 make
 
 %install
