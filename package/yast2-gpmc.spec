@@ -1,5 +1,5 @@
 #
-# spec file for package yast-gpmc
+# spec file for package yast2-gpmc
 #
 # Copyright (c) 2018 SUSE LINUX GmbH, Nuernberg, Germany.
 #
@@ -16,13 +16,13 @@
 #
 
 
-Name:           yast-gpmc
+Name:           yast2-gpmc
 Version:        1.4.1
 Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0
 Group:          Productivity/Networking/Samba
-Url:            http://www.github.com/dmulder/yast-gpmc
+Url:            http://www.github.com/dmulder/yast2-gpmc
 Source:         %{name}-v%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
@@ -39,6 +39,8 @@ BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
 BuildRequires:  yast2-testsuite
+Provides:       yast-gpmc = %{version}
+Obsoletes:      yast-gpmc < %{version}
 
 %description
 The Group Policy Management console for YaST provides tools for creating and
