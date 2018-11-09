@@ -53,7 +53,6 @@ modifying Group Policy Objects in Active Directory.
 autoreconf -if
 
 CONFIGURE_OPTIONS="\
-	--prefix=%{_prefix} \
 %if 0%{?is_opensuse}
         --enable-experimental \
 %else
