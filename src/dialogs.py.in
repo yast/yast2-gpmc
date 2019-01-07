@@ -13,6 +13,8 @@ import samba.security
 from samba.ntacls import dsacl2fsacl
 import os.path
 from itertools import chain
+from samba.dcerpc import preg
+import six
 
 ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
 
@@ -24,8 +26,32 @@ have_advanced_gui = have_x()
 
 selected_gpo = None
 
-def set_admx_value(conf, reg_key, key, val):
-    conf[reg_key][key]['value'] = val
+def set_admx_value(conf, reg_key, key, val, val_type):
+    e = preg.entry()
+    e.keyname = six.b(reg_key)
+    e.valuename = six.b(key)
+    if val_type == 'TextEntry':
+        e.type = 1
+        e.data = six.b(val)
+    elif val_type == 'IntField':
+        e.type = 4
+        e.data = int(val)
+    elif val_type == 'CheckBox':
+        e.type = 4
+        e.data = 1 if val else 0
+    entries = []
+    for x in conf.entries:
+        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
+            entries.append(x)
+    entries.append(e)
+    conf.num_entries = len(entries)
+    conf.entries = entries
+
+def get_admx_value(conf, reg_key, key):
+    for e in conf.entries:
+        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+            return e.data
+    return ''
 
 class GPME:
     def __init__(self, lp, creds):
@@ -277,7 +303,7 @@ class GPME:
                     Policies[parent]['add'] = None
                     Policies[parent]['header'] = (lambda : ['Setting', 'Value'])
                     Policies[parent]['values'] = \
-                            (lambda conf, reg_key, key, desc, valstr, _input : {
+                            (lambda conf, reg_key, key, desc, valstr, val_type, _input : {
                                 'setting' : {
                                     'order' : 0,
                                     'title' : 'Setting',
@@ -293,8 +319,8 @@ class GPME:
                                 'value' : {
                                     'order' : 1,
                                     'title' : key,
-                                    'get' : conf[reg_key][key]['value'] if reg_key in conf and key in conf[reg_key] else '',
-                                    'set' : (lambda v : set_admx_value(conf, reg_key, key, v)),
+                                    'get' : get_admx_value(conf, reg_key, key),
+                                    'set' : (lambda v : set_admx_value(conf, reg_key, key, v, val_type)),
                                     'valstr' : valstr,
                                     'input' : _input,
                                 },
@@ -320,7 +346,7 @@ class GPME:
                                 val_type = 'CheckBox'
                                 val_str = (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled')
                             values[disp]['values'] = Policies[parent]['values'](
-                                conf, policy.attrib['key'], disp, desc, val_str,
+                                conf, policy.attrib['key'], disp, desc, val_str, val_type,
                                 {
                                     'type' : val_type,
                                     'options' : None,
@@ -374,12 +400,12 @@ class GPME:
                     os_settings_items
             )
         )
-        if ENABLE_EXPERIMENTAL:
-            policy_items.append(
-                Item('Administrative Templates', False,
-                    admin_templates
-                )
+
+        policy_items.append(
+            Item('Administrative Templates', False,
+                admin_templates
             )
+        )
 
         computer_config = [
             Item('Policies', False,
