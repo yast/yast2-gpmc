@@ -98,6 +98,9 @@ class GPME:
                         break
                 UI.ReplaceWidget('rightPane', self.__display_policy(policy))
                 UI.SetFocus(str(ret))
+            elif str(ret) == 'delete_policy':
+                selection = UI.QueryWidget(str(ret), 'CurrentItem')
+                Policies[policy]['delete'](conf, selection)
 
         return Symbol(ret)
 
@@ -196,7 +199,8 @@ class GPME:
         buttons = []
         if terms['add']:
             buttons.append(PushButton(Id('add_policy'), 'Add'))
-        buttons.append(PushButton(Id('delete_policy'), 'Delete'))
+        if 'delete' in terms.keys():
+            buttons.append(PushButton(Id('delete_policy'), 'Delete'))
         buttons = tuple(buttons)
 
         return VBox(
