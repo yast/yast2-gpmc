@@ -10,3 +10,4 @@ autom4te.cache
 *.pyc
 src/gpmc.desktop
 src/gpmc.py
+src/dialogs.py

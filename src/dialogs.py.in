@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-from defaults import Policies, fetch_inf_value
+from defaults import Policies, fetch_inf_value, set_admx_value, get_admx_value, get_admx_configured
 from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink, strcmp, strcasecmp
 from yast import import_module
 import_module('Wizard')
@@ -25,33 +25,6 @@ def have_x():
 have_advanced_gui = have_x()
 
 selected_gpo = None
-
-def set_admx_value(conf, reg_key, key, val, val_type):
-    e = preg.entry()
-    e.keyname = six.b(reg_key)
-    e.valuename = six.b(key)
-    if val_type == 'TextEntry':
-        e.type = 1
-        e.data = six.b(val)
-    elif val_type == 'IntField':
-        e.type = 4
-        e.data = int(val)
-    elif val_type == 'CheckBox':
-        e.type = 4
-        e.data = 1 if val else 0
-    entries = []
-    for x in conf.entries:
-        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
-            entries.append(x)
-    entries.append(e)
-    conf.num_entries = len(entries)
-    conf.entries = entries
-
-def get_admx_value(conf, reg_key, key):
-    for e in conf.entries:
-        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
-            return e.data
-    return ''
 
 class GPME:
     def __init__(self, lp, creds):
@@ -321,7 +294,7 @@ class GPME:
                                     'title' : key,
                                     'get' : get_admx_value(conf, reg_key, key),
                                     'set' : (lambda v : set_admx_value(conf, reg_key, key, v, val_type)),
-                                    'valstr' : valstr,
+                                    'valstr' : (lambda v : valstr(v) if get_admx_configured(conf, reg_key, key) else 'Not Defined'),
                                     'input' : _input,
                                 },
                             } )
@@ -336,15 +309,16 @@ class GPME:
                             values[disp] = {}
                             val_type = None
                             elements = policy.find('elements')
+                            defined = get_admx_configured(conf, policy.attrib['key'], disp)
                             if elements.find('text') is not None:
                                 val_type = 'TextEntry'
-                                val_str = (lambda v : v if v else 'Not Defined')
+                                val_str = (lambda v : v if v else '')
                             elif elements.find('decimal') is not None:
                                 val_type = 'IntField'
-                                val_str = (lambda v : v if v else 'Not Defined')
+                                val_str = (lambda v : v)
                             elif elements.find('boolean') is not None:
                                 val_type = 'CheckBox'
-                                val_str = (lambda v : 'Not Defined' if not v else 'Disabled' if int(v) == 0 else 'Enabled')
+                                val_str = (lambda v : 'Disabled' if int(v) == 0 else 'Enabled')
                             values[disp]['values'] = Policies[parent]['values'](
                                 conf, policy.attrib['key'], disp, desc, val_str, val_type,
                                 {

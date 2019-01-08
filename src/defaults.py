@@ -3,10 +3,47 @@ import xml.etree.ElementTree as etree
 import uuid
 import os.path
 from subprocess import Popen, PIPE
+from complex import strcmp
+from samba.dcerpc import preg
+import six
 
 from yast import import_module
 import_module('UI')
 from yast import UI
+
+def set_admx_value(conf, reg_key, key, val, val_type):
+    e = preg.entry()
+    e.keyname = six.b(reg_key)
+    e.valuename = six.b(key)
+    if val_type == 'TextEntry':
+        e.type = 1
+        e.data = six.b(val)
+    elif val_type == 'IntField':
+        e.type = 4
+        e.data = int(val)
+    elif val_type == 'CheckBox':
+        e.type = 4
+        e.data = 1 if val else 0
+    entries = []
+    for x in conf.entries:
+        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
+            entries.append(x)
+    entries.append(e)
+    conf.num_entries = len(entries)
+    conf.entries = entries
+
+def get_admx_value(conf, reg_key, key):
+    for e in conf.entries:
+        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+            return e.data
+    return ''
+
+def get_admx_configured(conf, reg_key, key):
+    for e in conf.entries:
+        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+            return True
+    return False
+
 def select_script(title, policy, conn):
     full_path = UI.AskForExistingFile('/', '*.sh *.py *.pl', title)
     if policy == 'comp_scripts_shutdown':
