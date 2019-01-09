@@ -675,7 +675,7 @@ class GPOConnection(GPConnection):
                 raw = self.conn.loadfile(path)
                 pol_conf = ndr_unpack(preg.file, raw)
             except:
-                pol_conf = None
+                pol_conf = preg.file()
         return pol_conf
 
     def __smb_mkdir_p(self, path):
