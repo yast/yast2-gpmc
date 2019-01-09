@@ -221,7 +221,7 @@ class GPConnection:
 
         gpo = GPOConnection(self.lp, self.creds, unc_path)
         try:
-            self.ldap_add(dn, addlist(stringify_ldap(ldap_mod)))
+            self.ldap_add(dn, addlist(ldap_mod))
             self.ldap_add(machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
             self.ldap_add(user_dn, addlist(stringify_ldap(sub_ldap_mod)))
         except LdapException as e:
