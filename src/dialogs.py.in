@@ -74,10 +74,17 @@ class GPME:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         for k in values.keys():
-                            if values[k]['set'] or values[k]['input']['options']:
-                                value = UI.QueryWidget('entry_%s' % k, 'Value')
-                            if values[k]['input']['options']:
-                                value = values[k]['input']['options'][value.strip()]
+                            if 'configurable' in values[k]['input'] and values[k]['input']['configurable']:
+                                configured = UI.QueryWidget('configured_%s' % k, 'Value')
+                                if configured or configured == None:
+                                    value = UI.QueryWidget('entry_%s' % k, 'Value')
+                                else:
+                                    value = None
+                            else:
+                                if values[k]['set'] or values[k]['input']['options']:
+                                    value = UI.QueryWidget('entry_%s' % k, 'Value')
+                                if values[k]['input']['options']:
+                                    value = values[k]['input']['options'][value.strip()]
                             if values[k]['set']:
                                 if type(value) is str:
                                     value = value.strip()
@@ -124,8 +131,15 @@ class GPME:
             if not value[-1]['input']:
                 continue
             if strcmp(value[-1]['input']['type'], 'TextEntry'):
+                configurable = Empty()
+                configured = value[-1]['get'] != None
+                if 'configurable' in value[-1]['input'] and value[-1]['input']['configurable']:
+                    configurable = CheckBox(Id('configured_%s' % k), Opt('hstretch'), 'Configured', configured)
                 items.append(Top(MinWidth(30, Left(
-                    ReplacePoint(Id('text_entry_%s' % k), TextEntry(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')),
+                    ReplacePoint(Id('text_entry_%s' % k), VBox(
+                        configurable,
+                        TextEntry(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], value[-1]['get'] if value[-1]['get'] else '')
+                    )),
                 ))))
             elif strcmp(value[-1]['input']['type'], 'ComboBox'):
                 combo_options = []
@@ -149,8 +163,15 @@ class GPME:
                     )
                 ))))
             elif strcmp(value[-1]['input']['type'], 'IntField'):
+                configurable = Empty()
+                configured = value[-1]['get'] != None
+                if 'configurable' in value[-1]['input'] and value[-1]['input']['configurable']:
+                    configurable = CheckBox(Id('configured_%s' % k), Opt('hstretch'), 'Configured', configured)
                 items.append(Top(MinWidth(30, Left(
-                    ReplacePoint(Id('int_field_%s' % k), IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0))
+                    ReplacePoint(Id('int_field_%s' % k), VBox(
+                        configurable,
+                        IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0)
+                    ))
                 ))))
             elif strcmp(value[-1]['input']['type'], 'CheckBox'):
                 if 'configurable' in value[-1]['input'] and value[-1]['input']['configurable']:

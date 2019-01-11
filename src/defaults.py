@@ -46,7 +46,7 @@ def get_admx_value(conf, reg_key, key):
     for e in conf.entries:
         if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
             return e.data
-    return ''
+    return None
 
 def get_admx_configured(conf, reg_key, key):
     for e in conf.entries:
