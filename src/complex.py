@@ -706,6 +706,7 @@ class GPOConnection(GPConnection):
         if six.PY3 and type(text) is str:
             text = text.encode('utf-8')
         try:
+            self.conn.unlink(path)
             self.conn.savefile(path, text)
         except Exception as e:
             if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
@@ -736,6 +737,7 @@ class GPOConnection(GPConnection):
             if six.PY3 and type(value) is str:
                 value = value.encode('utf-8')
             try:
+                self.conn.unlink(filename)
                 self.conn.savefile(filename, value)
             except Exception as e:
                 if e.args[0] == 0xC0000035: # STATUS_OBJECT_NAME_COLLISION
