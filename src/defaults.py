@@ -11,7 +11,17 @@ from yast import import_module
 import_module('UI')
 from yast import UI
 
+def delete_admx_value(conf, reg_key, key):
+    entries = []
+    for x in conf.entries:
+        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
+            entries.append(x)
+    conf.num_entries = len(entries)
+    conf.entries = entries
+
 def set_admx_value(conf, reg_key, key, val, val_type):
+    if val == None:
+        return delete_admx_value(conf, reg_key, key)
     e = preg.entry()
     e.keyname = six.b(reg_key)
     e.valuename = six.b(key)

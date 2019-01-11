@@ -153,9 +153,19 @@ class GPME:
                     ReplacePoint(Id('int_field_%s' % k), IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0))
                 ))))
             elif strcmp(value[-1]['input']['type'], 'CheckBox'):
-                items.append(Top(Left(
-                    ReplacePoint(Id('check_box_%s' % k), CheckBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], bool(value[-1]['get']) if value[-1]['get'] else False))
-                )))
+                if 'configurable' in value[-1]['input'] and value[-1]['input']['configurable']:
+                    disp = value[-1]['valstr'](value[-1]['get'])
+                    items.append(Top(Left(
+                        ReplacePoint(Id('check_box_%s' % k), RadioButtonGroup(Id('entry_%s' % k), VBox(
+                            Left(RadioButton(Id(None), 'Not Configured', strcmp(disp, 'Not configured'))),
+                            Left(RadioButton(Id(True), 'Enabled', strcmp(disp, 'Enabled'))),
+                            Left(RadioButton(Id(False), 'Disabled', strcmp(disp, 'Disabled')))
+                        )))
+                    )))
+                else:
+                    items.append(Top(Left(
+                        ReplacePoint(Id('check_box_%s' % k), CheckBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], bool(value[-1]['get']) if value[-1]['get'] else False))
+                    )))
         if reverse:
             items.reverse()
         items = tuple(items)
@@ -298,7 +308,7 @@ class GPME:
                                     'title' : key,
                                     'get' : get_admx_value(conf, reg_key, key),
                                     'set' : (lambda v : set_admx_value(conf, reg_key, key, v, val_type)),
-                                    'valstr' : (lambda v : valstr(v) if get_admx_configured(conf, reg_key, key) else 'Not Defined'),
+                                    'valstr' : (lambda v : valstr(v) if get_admx_configured(conf, reg_key, key) else 'Not configured'),
                                     'input' : _input,
                                 },
                             } )
@@ -327,6 +337,7 @@ class GPME:
                                 conf, policy.attrib['key'], disp, desc, val_str, val_type,
                                 {
                                     'type' : val_type,
+                                    'configurable' : True,
                                     'options' : None,
                                 },
                             )
