@@ -50,6 +50,7 @@ modifying Group Policy Objects in Active Directory.
 %setup -q
 
 %build
+make -f Makefile.cvs all
 autoreconf -if
 
 CONFIGURE_OPTIONS="\
@@ -59,9 +60,8 @@ CONFIGURE_OPTIONS="\
         --disable-experimental \
 %endif
 "
-
 %configure ${CONFIGURE_OPTIONS}
-make %{?_smp_mflags}
+%make_build
 
 %install
 %make_install
