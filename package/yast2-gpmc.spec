@@ -47,7 +47,7 @@ The Group Policy Management console for YaST provides tools for creating and
 modifying Group Policy Objects in Active Directory.
 
 %prep
-%setup -q -n %{name}-v%{version}
+%setup -q
 
 %build
 autoreconf -if
