@@ -23,7 +23,7 @@ Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0
 Group:          Productivity/Networking/Samba
 Url:            http://www.github.com/dmulder/yast2-gpmc
-Source:         %{name}-v%{version}.tar.bz2
+Source:         %{name}-%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
 Requires:       python3-ldap
@@ -47,10 +47,10 @@ The Group Policy Management console for YaST provides tools for creating and
 modifying Group Policy Objects in Active Directory.
 
 %prep
-%setup -q -n %{name}-v%{version}
+%setup -q
 
 %build
-autoreconf -if
+make -f Makefile.cvs all
 
 CONFIGURE_OPTIONS="\
 %if 0%{?is_opensuse}
@@ -59,23 +59,19 @@ CONFIGURE_OPTIONS="\
         --disable-experimental \
 %endif
 "
-
 %configure ${CONFIGURE_OPTIONS}
-make %{?_smp_mflags}
+%make_build
 
 %install
-%make_install
+%yast_install
 
 %files
 %defattr(-,root,root)
-%dir %{_datadir}/YaST2/include/gpmc
-%{_datadir}/YaST2/clients/gpmc.py
-%{_datadir}/YaST2/include/gpmc/complex.py
-%{_datadir}/YaST2/include/gpmc/dialogs.py
-%{_datadir}/YaST2/include/gpmc/wizards.py
-%{_datadir}/YaST2/include/gpmc/defaults.py
-%{_datadir}/applications/YaST2/gpmc.desktop
-%dir %{_datadir}/doc/yast2-gpmc
-%{_datadir}/doc/yast2-gpmc/COPYING
+%dir %{yast_yncludedir}/gpmc
+%{yast_yncludedir}/gpmc/*
+%{yast_clientdir}/*.py
+%{yast_desktopdir}/gpmc.desktop
+%doc %{yast_docdir}
+%license COPYING
 
 %changelog

@@ -11,3 +11,9 @@ autom4te.cache
 src/gpmc.desktop
 src/gpmc.py
 src/dialogs.py
+/Makefile.am
+/Makefile.am.common
+*.ami
+config.guess
+config.sub
+configure.ac
