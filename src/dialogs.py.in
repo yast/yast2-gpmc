@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from defaults import Policies, fetch_inf_value, set_admx_value, get_admx_value, get_admx_configured
-from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink, strcmp, strcasecmp
+from complex import GPConnection, GPOConnection, dn_to_path, parse_gplink
+from adcommon.strings import strcmp, strcasecmp
 from yast import import_module
 import_module('Wizard')
 import_module('UI')
@@ -15,6 +16,7 @@ import os.path
 from itertools import chain
 from samba.dcerpc import preg
 import six
+from adcommon.creds import YCreds
 
 ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
 
@@ -489,7 +491,8 @@ class GPMC:
             Wizard.HideAbortButton()
             Wizard.HideBackButton()
             Wizard.HideNextButton()
-        self.got_creds = self.__get_creds(creds)
+        ycred = YCreds(creds, auto_krb5_creds=False)
+        self.got_creds = ycred.get_creds()
         while self.got_creds:
             try:
                 self.q = GPConnection(lp, creds)
@@ -498,46 +501,12 @@ class GPMC:
                 break
             except Exception as e:
                 ycpbuiltins.y2error(str(e))
-                creds.set_password('')
-                self.got_creds = self.__get_creds(creds)
+                self.got_creds = ycred.get_creds()
 
     def __setup_menus(self):
         UI.WizardCommand(Term('DeleteMenus'))
         UI.WizardCommand(Term('AddMenu', '&File', 'file-menu'))
         UI.WizardCommand(Term('AddMenuEntry', 'file-menu', 'Close', 'abort'))
-
-    def __get_creds(self, creds):
-        if not creds.get_password():
-            UI.SetApplicationTitle('Authenticate')
-            UI.OpenDialog(self.__password_prompt(creds.get_username()))
-            while True:
-                subret = UI.UserInput()
-                if str(subret) == 'creds_ok':
-                    user = UI.QueryWidget('username_prompt', 'Value')
-                    password = UI.QueryWidget('password_prompt', 'Value')
-                    UI.CloseDialog()
-                    if not password:
-                        return False
-                    creds.set_username(user)
-                    creds.set_password(password)
-                    return True
-                if str(subret) == 'creds_cancel':
-                    UI.CloseDialog()
-                    return False
-        return True
-
-    def __password_prompt(self, user):
-        return MinWidth(30, HBox(HSpacing(1), VBox(
-            VSpacing(.5),
-            Left(Label('To continue, type an administrator password')),
-            Left(TextEntry(Id('username_prompt'), Opt('hstretch'), 'Username', user)),
-            Left(Password(Id('password_prompt'), Opt('hstretch'), 'Password')),
-            Right(HBox(
-                PushButton(Id('creds_ok'), 'OK'),
-                PushButton(Id('creds_cancel'), 'Cancel'),
-            )),
-            VSpacing(.5)
-        ), HSpacing(1)))
 
     def __find_gpo(self, gpo_guid):
         fgpo = None
