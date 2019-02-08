@@ -51,7 +51,6 @@ modifying Group Policy Objects in Active Directory.
 
 %build
 make -f Makefile.cvs all
-autoreconf -if
 
 CONFIGURE_OPTIONS="\
 %if 0%{?is_opensuse}
@@ -64,18 +63,15 @@ CONFIGURE_OPTIONS="\
 %make_build
 
 %install
-%make_install
+%yast_install
 
 %files
 %defattr(-,root,root)
-%dir %{_datadir}/YaST2/include/gpmc
-%{_datadir}/YaST2/clients/gpmc.py
-%{_datadir}/YaST2/include/gpmc/complex.py
-%{_datadir}/YaST2/include/gpmc/dialogs.py
-%{_datadir}/YaST2/include/gpmc/wizards.py
-%{_datadir}/YaST2/include/gpmc/defaults.py
-%{_datadir}/applications/YaST2/gpmc.desktop
-%dir %{_datadir}/doc/yast2-gpmc
-%{_datadir}/doc/yast2-gpmc/COPYING
+%dir %{yast_yncludedir}/gpmc
+%{yast_yncludedir}/gpmc/*
+%{yast_clientdir}/*.py
+%{yast_desktopdir}/gpmc.desktop
+%doc %{yast_docdir}
+%license COPYING
 
 %changelog
