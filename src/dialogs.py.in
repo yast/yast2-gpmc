@@ -492,16 +492,16 @@ class GPMC:
             Wizard.HideBackButton()
             Wizard.HideNextButton()
         ycred = YCreds(creds, auto_krb5_creds=False)
-        self.got_creds = ycred.get_creds()
-        while self.got_creds:
+        def cred_valid():
             try:
                 self.q = GPConnection(lp, creds)
                 self.gpos = self.q.gpo_list()
                 self.realm_dn = self.q.realm_to_dn(self.realm)
-                break
+                return True
             except Exception as e:
                 ycpbuiltins.y2error(str(e))
-                self.got_creds = ycred.get_creds()
+            return False
+        self.got_creds = ycred.Show(cred_valid)
 
     def __setup_menus(self):
         UI.WizardCommand(Term('DeleteMenus'))
