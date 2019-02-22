@@ -17,14 +17,9 @@ from itertools import chain
 from samba.dcerpc import preg
 import six
 from adcommon.creds import YCreds
+from adcommon.ui import CreateMenu, DeleteButtonBox
 
 ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
-
-def have_x():
-    from subprocess import Popen, PIPE
-    p = Popen(['xset', '-q'], stdout=PIPE, stderr=PIPE)
-    return p.wait() == 0
-have_advanced_gui = have_x()
 
 selected_gpo = None
 
@@ -34,16 +29,15 @@ class GPME:
         self.conn = GPOConnection(lp, creds, selected_gpo[1]['gPCFileSysPath'][-1])
 
     def __reset(self):
-        global have_advanced_gui
-        if not have_advanced_gui:
-            Wizard.RestoreNextButton()
         UI.SetApplicationTitle('Group Policy Management Editor')
         Wizard.SetContentsButtons('Group Policy Management Editor', self.__gpme_page(), 'Group Policy Management Editor', '', 'Close')
-        if have_advanced_gui:
-            Wizard.HideNextButton()
-        else:
-            Wizard.HideAbortButton()
-            Wizard.HideBackButton()
+        self.__setup_menus()
+        DeleteButtonBox()
+
+    def __setup_menus(self):
+        menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
+                 {'title': 'Exit', 'id': 'abort', 'type': 'MenuEntry', 'parent': 'file'}]
+        CreateMenu(menus)
 
     def Show(self):
         if not self.conn:
@@ -480,17 +474,14 @@ class GPME:
 
 class GPMC:
     def __init__(self, lp, creds):
-        global selected_gpo, have_advanced_gui
+        global selected_gpo
         self.realm = lp.get('realm')
         self.lp = lp
         self.creds = creds
         self.gpos = []
         selected_gpo = None
         self.__setup_menus()
-        if have_advanced_gui:
-            Wizard.HideAbortButton()
-            Wizard.HideBackButton()
-            Wizard.HideNextButton()
+        DeleteButtonBox()
         ycred = YCreds(creds, auto_krb5_creds=False)
         def cred_valid():
             try:
@@ -501,12 +492,33 @@ class GPMC:
             except Exception as e:
                 ycpbuiltins.y2error(str(e))
             return False
-        self.got_creds = ycred.Show(cred_valid)
+        self.cred_valid = cred_valid
+        self.got_creds = ycred.Show(self.cred_valid)
 
-    def __setup_menus(self):
-        UI.WizardCommand(Term('DeleteMenus'))
-        UI.WizardCommand(Term('AddMenu', '&File', 'file-menu'))
-        UI.WizardCommand(Term('AddMenuEntry', 'file-menu', 'Close', 'abort'))
+    def __setup_menus(self, actions=None):
+        menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
+                 {'title': 'Exit', 'id': 'abort', 'type': 'MenuEntry', 'parent': 'file'}]
+        if actions:
+            menus.extend(actions)
+        CreateMenu(menus)
+
+    def __gpo_menus(self, parent=None):
+        menus = [{'title': 'Action', 'id': 'action', 'type': 'Menu'},
+                 {'title': 'Edit...', 'id': 'edit_gpo', 'type': 'MenuEntry', 'parent': 'action'}]
+        if parent:
+            delete_id = 'context_del_link'
+        else:
+            delete_id = 'context_del_gpo'
+        menus.append({'title': 'Delete', 'id': delete_id, 'type': 'MenuEntry', 'parent': 'action'})
+        self.__setup_menus(actions=menus)
+
+    def __objs_menus(self, container=None):
+        menus = [{'title': 'Action', 'id': 'action', 'type': 'Menu'}]
+        if container:
+            menus.append({'title': 'Create a GPO in this domain, and Link it here...', 'id': 'context_add_gpo_and_link', 'type': 'MenuEntry', 'parent': 'action'})
+        else:
+            menus.append({'title': 'New', 'id': 'context_add_gpo', 'type': 'MenuEntry', 'parent': 'action'})
+        self.__setup_menus(actions=menus)
 
     def __find_gpo(self, gpo_guid):
         fgpo = None
@@ -554,20 +566,10 @@ class GPMC:
             self.gpos = []
 
     def __reset(self):
-        global have_advanced_gui
-        if not have_advanced_gui:
-            Wizard.RestoreBackButton()
-            Wizard.RestoreNextButton()
-            Wizard.RestoreAbortButton()
         UI.SetApplicationTitle('Group Policy Management Console')
         Wizard.SetContentsButtons('Group Policy Management Console', self.__gpmc_page(), self.__help(), 'Back', 'Edit GPO')
-        if have_advanced_gui:
-            Wizard.HideAbortButton()
-            Wizard.HideBackButton()
-            Wizard.HideNextButton()
-        else:
-            Wizard.DisableBackButton()
-            Wizard.DisableNextButton()
+        self.__setup_menus()
+        DeleteButtonBox()
 
     def Show(self):
         global selected_gpo
@@ -658,15 +660,27 @@ class GPMC:
                         UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_delegation())
                     elif ret == 'Group Policy Inheritance':
                         UI.ReplaceWidget(Id('realm_tabContainer'), self.__realm_inheritance())
+                    if event['EventReason'] == 'SelectionChanged':
+                        self.__objs_menus(gpo_guid)
                 elif gpo_guid == 'Group Policy Objects':
                     if current_page != 'Group Policy Objects':
                         Wizard.DisableNextButton()
                         UI.ReplaceWidget('rightPane', Empty())
                         current_page = 'Group Policy Objects'
+                    if event['EventReason'] == 'SelectionChanged':
+                        self.__objs_menus()
                 elif gpo_guid.lower().startswith('ou='):
                     UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
                     current_page = None
+                    if event['EventReason'] == 'SelectionChanged':
+                        self.__objs_menus(gpo_guid)
                 else:
+                    parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
+                    if event['EventReason'] == 'SelectionChanged':
+                        if parent != 'Group Policy Objects' and parent != self.realm_dn:
+                            self.__gpo_menus(parent)
+                        else:
+                            self.__gpo_menus()
                     if current_page != 'Dumbtab' or old_gpo_guid != gpo_guid:
                         Wizard.EnableNextButton()
                         selected_gpo = self.__find_gpo(gpo_guid)
@@ -857,21 +871,12 @@ class GPMC:
         return contents
 
     def __container(self, dn):
-        global have_advanced_gui
-        if have_advanced_gui:
-            buttons = Empty()
-        else:
-            buttons = Right(HBox(
-                PushButton(Id('del_gpo'), 'Delete GPO'),
-                PushButton(Id('add_gpo'), 'Create a GPO')
-            ))
         return VBox(
             Frame(self.realm, DumbTab([
                 'Linked Group Policy Objects',
                 #'Group Policy Inheritance',
                 #'Delegation'
             ], ReplacePoint(Id('realm_tabContainer'), self.__container_links(dn)))),
-            buttons,
         )
 
     def __realm_delegation(self):
