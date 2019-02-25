@@ -16,7 +16,7 @@ import os.path
 from itertools import chain
 from samba.dcerpc import preg
 import six
-from adcommon.creds import YCreds
+from adcommon.creds import YCreds, switch_domains
 from adcommon.ui import CreateMenu, DeleteButtonBox
 
 ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
@@ -497,6 +497,7 @@ class GPMC:
 
     def __setup_menus(self, actions=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
+                 {'title': 'Change domain...', 'id': 'change_domain', 'type': 'MenuEntry', 'parent': 'file'},
                  {'title': 'Exit', 'id': 'abort', 'type': 'MenuEntry', 'parent': 'file'}]
         if actions:
             menus.extend(actions)
@@ -615,7 +616,7 @@ class GPMC:
                     else:
                         UI.OpenContextMenu(self.__gpo_context_menu())
                 elif gpo_guid != 'Domains':
-                    UI.OpenContextMenu(self.__objs_context_menu(gpo_guid))
+                    UI.OpenContextMenu(self.__objs_context_menu(gpo_guid, realm=(gpo_guid == self.realm_dn)))
             elif ret == 'edit_gpo':
                 selected_gpo = self.__find_gpo(gpo_guid)
                 ret = 'next'
@@ -643,6 +644,10 @@ class GPMC:
                 self.__reset()
                 UI.ReplaceWidget('rightPane', Empty())
                 current_page = None
+            elif ret == 'change_domain':
+                if switch_domains(self.lp, self.creds, self.cred_valid):
+                    self.realm = self.lp.get('realm')
+                    self.__reset()
             elif UI.HasSpecialWidget('DumbTab'):
                 if gpo_guid == 'Domains':
                     if current_page != None:
@@ -717,15 +722,15 @@ class GPMC:
             Item(Id(delete_id), 'Delete')
         ])
 
-    def __objs_context_menu(self, container=None):
+    def __objs_context_menu(self, container=None, realm=False):
+        items = []
+        if realm:
+            items.append(Item(Id('change_domain'), 'Change Domain...'))
         if container:
-            return Term('menu', [
-                Item(Id('context_add_gpo_and_link'), 'Create a GPO in this domain, and Link it here...')
-            ])
+            items.append(Item(Id('context_add_gpo_and_link'), 'Create a GPO in this domain, and Link it here...'))
         else:
-            return Term('menu', [
-                Item(Id('context_add_gpo'), 'New')
-            ])
+            items.append(Item(Id('context_add_gpo'), 'New'))
+        return Term('menu', items)
 
     def __name_gpo(self):
         return MinWidth(30, VBox(
