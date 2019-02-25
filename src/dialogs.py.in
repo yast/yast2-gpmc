@@ -606,10 +606,10 @@ class GPMC:
                 UI.ReplaceWidget('rightPane', self.__container(gpo_guid))
                 current_page = 'Realm'
             elif ret == 'gpmc_tree' and event['EventReason'] == 'ContextMenuActivated':
-                parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
                 if gpo_guid == 'Group Policy Objects':
                     UI.OpenContextMenu(self.__objs_context_menu())
                 elif gpo_guid != 'Domains' and self.__find_gpo(gpo_guid):
+                    parent = UI.QueryWidget('gpmc_tree', 'CurrentBranch')[-2]
                     if parent != 'Group Policy Objects' and parent != self.realm_dn:
                         UI.OpenContextMenu(self.__gpo_context_menu(parent))
                     else:
