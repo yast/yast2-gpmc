@@ -61,7 +61,7 @@ CONFIGURE_OPTIONS="\
 %endif
 "
 %configure ${CONFIGURE_OPTIONS}
-%make_build
+make
 
 %install
 %yast_install
