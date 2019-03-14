@@ -17,12 +17,12 @@
 
 
 Name:           yast2-gpmc
-Version:        1.4.1
+Version:        1.4.2
 Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0
 Group:          Productivity/Networking/Samba
-Url:            http://www.github.com/dmulder/yast2-gpmc
+Url:            http://www.github.com/yast-samba/yast2-gpmc
 Source:         %{name}-%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
