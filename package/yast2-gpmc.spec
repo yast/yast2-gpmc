@@ -23,7 +23,7 @@ Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0-only
 Group:          Productivity/Networking/Samba
 Url:            http://www.github.com/yast-samba/yast2-gpmc
-Source:         %{name}-v%{version}.tar.bz2
+Source:         %{name}-%{version}.tar.bz2
 BuildArch:      noarch
 Requires:       krb5-client
 Requires:       python3-ldap
@@ -48,7 +48,7 @@ The Group Policy Management console for YaST provides tools for creating and
 modifying Group Policy Objects in Active Directory.
 
 %prep
-%setup -q -n %{name}-v%{version}
+%setup -q
 
 %build
 make -f Makefile.cvs all
