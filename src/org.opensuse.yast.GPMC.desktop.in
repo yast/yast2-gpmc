@@ -18,6 +18,7 @@ X-SuSE-YaST-AutoInstResource=gpmc
 Icon=yast-gpmc
 Exec=yast2 '@CLIENTDIR@/gpmc.py'
 
-Name=Group Policy Management Console
+Name=YaST Group Policy Management
 GenericName=Manage Group Policy
+CommentManage Group Policy
 StartupNotify=true
