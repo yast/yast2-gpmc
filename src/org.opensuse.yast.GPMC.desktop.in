@@ -20,5 +20,5 @@ Exec=yast2 '@CLIENTDIR@/gpmc.py'
 
 Name=YaST Group Policy Management
 GenericName=Manage Group Policy
-CommentManage Group Policy
+Comment=Manage Group Policy
 StartupNotify=true
