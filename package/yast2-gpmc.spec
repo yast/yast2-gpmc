@@ -22,7 +22,7 @@ Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0-only
 Group:          Productivity/Networking/Samba
-Url:            https://www.github.com/yast/yast2-gpmc
+Url:            https://github.com/yast/yast2-gpmc
 
 Source:         %{name}-%{version}.tar.bz2
 
