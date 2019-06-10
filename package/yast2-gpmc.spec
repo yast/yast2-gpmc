@@ -17,21 +17,15 @@
 
 
 Name:           yast2-gpmc
-Version:        1.4.2
+Version:        1.4.3
 Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0-only
 Group:          Productivity/Networking/Samba
-Url:            http://www.github.com/yast-samba/yast2-gpmc
+Url:            https://github.com/yast/yast2-gpmc
+
 Source:         %{name}-%{version}.tar.bz2
-BuildArch:      noarch
-Requires:       krb5-client
-Requires:       python3-ldap
-Requires:       samba-client
-Requires:       samba-python3 >= 4.10.0
-Requires:       yast2
-Requires:       yast2-python3-bindings >= 4.0.0
-Requires:       yast2-adcommon-python
+
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  perl-XML-Writer
@@ -40,8 +34,19 @@ BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
 BuildRequires:  yast2-testsuite
+
+Requires:       krb5-client
+Requires:       python3-ldap
+Requires:       samba-client
+Requires:       samba-python3 >= 4.10.0
+Requires:       yast2
+Requires:       yast2-python3-bindings >= 4.0.0
+Requires:       yast2-adcommon-python
+
 Provides:       yast-gpmc = %{version}
 Obsoletes:      yast-gpmc < %{version}
+
+BuildArch:      noarch
 
 %description
 The Group Policy Management console for YaST provides tools for creating and
@@ -65,13 +70,13 @@ make
 
 %install
 %yast_install
+%yast_metainfo
 
 %files
-%defattr(-,root,root)
-%dir %{yast_yncludedir}/gpmc
-%{yast_yncludedir}/gpmc/*
-%{yast_clientdir}/*.py
-%{yast_desktopdir}/gpmc.desktop
+%{yast_yncludedir}
+%{yast_clientdir}
+%{yast_desktopdir}
+%{yast_metainfodir}
 %doc %{yast_docdir}
 %license COPYING
 
