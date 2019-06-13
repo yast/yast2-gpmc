@@ -13,9 +13,6 @@ ynclude_DATA =			\
 	defaults.py		\
 	complex.py
 
-gpmc.desktop: org.opensuse.yast.GPMC.desktop.in
-	sed -e 's;[@]CLIENTDIR[@];$(clientdir);g' < $(srcdir)/org.opensuse.yast.GPMC.desktop.in > $(srcdir)/org.opensuse.yast.GPMC.desktop
-
 desktopdir = ${prefix}/share/applications/YaST2
 desktop_DATA =			\
 	org.opensuse.yast.GPMC.desktop
@@ -34,4 +31,4 @@ gpmc:
 ycpchook = gpmc
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
-CLEANFILES = gpmc.py org.opensuse.yast.GPMC.desktop dialogs.py
+CLEANFILES = gpmc.py dialogs.py
