@@ -16,7 +16,7 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=gpmc
 
 Icon=yast-gpmc
-Exec=/usr/bin/xdg-su -c 'yast2 gpmc'
+Exec=yast2 gpmc
 
 Name=YaST Group Policy Management
 GenericName=Manage Group Policy
