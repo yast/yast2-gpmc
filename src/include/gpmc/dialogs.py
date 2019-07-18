@@ -19,7 +19,7 @@ import six
 from adcommon.creds import YCreds, switch_domains
 from adcommon.ui import CreateMenu, DeleteButtonBox
 
-ENABLE_EXPERIMENTAL = @ENABLE_EXPERIMENTAL@
+ENABLE_EXPERIMENTAL = bool(os.getenv("YAST2_GPMC_EXPERIMENTAL"))
 
 selected_gpo = None
 

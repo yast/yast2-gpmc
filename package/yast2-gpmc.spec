@@ -26,14 +26,13 @@ Url:            https://github.com/yast/yast2-gpmc
 
 Source:         %{name}-%{version}.tar.bz2
 
-BuildRequires:  autoconf
-BuildRequires:  automake
 BuildRequires:  perl-XML-Writer
 BuildRequires:  python3
 BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
 BuildRequires:  yast2-testsuite
+BuildRequires:  rubygem(%rb_default_ruby_abi:yast-rake)
 
 Requires:       krb5-client
 Requires:       python3-ldap
@@ -56,17 +55,6 @@ modifying Group Policy Objects in Active Directory.
 %setup -q
 
 %build
-make -f Makefile.cvs all
-
-CONFIGURE_OPTIONS="\
-%if 0%{?is_opensuse}
-        --enable-experimental \
-%else
-        --disable-experimental \
-%endif
-"
-%configure ${CONFIGURE_OPTIONS}
-make
 
 %install
 %yast_install
@@ -77,7 +65,6 @@ make
 %{yast_clientdir}
 %{yast_desktopdir}
 %{yast_metainfodir}
-%doc %{yast_docdir}
 %license COPYING
 
 %changelog
