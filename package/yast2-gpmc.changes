@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Aug 22 19:31:25 UTC 2019 - dmulder@suse.com
+
+- SamDB interface now allows gpmc to use krb5 auth; (boo#1146898);
+- 1.4.4
+
+-------------------------------------------------------------------
 Fri Jun  7 23:25:03 UTC 2019 - Stasiek Michalski <hellcp@mailbox.org>
 
 - Use new schema of desktop files (boo#1084864)

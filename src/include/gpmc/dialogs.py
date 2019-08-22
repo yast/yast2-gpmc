@@ -482,7 +482,7 @@ class GPMC:
         selected_gpo = None
         self.__setup_menus()
         DeleteButtonBox()
-        ycred = YCreds(creds, auto_krb5_creds=False)
+        ycred = YCreds(creds)
         def cred_valid():
             try:
                 self.q = GPConnection(lp, creds)
