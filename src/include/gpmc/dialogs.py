@@ -467,7 +467,7 @@ class GPME:
                 )
             )
 
-        contents = Tree(Id('gpme_tree'), Opt('notify'), selected_gpo[1]['displayName'][-1],
+        contents = Tree(Id('gpme_tree'), Opt('notify', 'immediate'), selected_gpo[1]['displayName'][-1],
             items
         )
         return contents

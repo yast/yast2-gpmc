@@ -2,6 +2,7 @@
 Thu Aug 22 19:31:25 UTC 2019 - dmulder@suse.com
 
 - SamDB interface now allows gpmc to use krb5 auth; (boo#1146898);
+- GPO Editor tree open immediate on navigate.
 - 1.4.4
 
 -------------------------------------------------------------------
