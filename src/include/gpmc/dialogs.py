@@ -493,7 +493,10 @@ class GPMC:
                 ycpbuiltins.y2error(str(e))
             return False
         self.cred_valid = cred_valid
-        self.got_creds = ycred.Show(self.cred_valid)
+        if not self.cred_valid():
+            self.got_creds = ycred.Show(self.cred_valid)
+        else:
+            self.got_creds = True
 
     def __setup_menus(self, actions=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
