@@ -460,12 +460,11 @@ class GPME:
                 computer_config
             ),
         ]
-        if ENABLE_EXPERIMENTAL:
-            items.append(
-                Item('User Configuration', True,
-                    user_config
-                )
+        items.append(
+            Item('User Configuration', True,
+                user_config
             )
+        )
 
         contents = Tree(Id('gpme_tree'), Opt('notify', 'immediate'), selected_gpo[1]['displayName'][-1],
             items
