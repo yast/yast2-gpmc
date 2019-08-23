@@ -580,6 +580,10 @@ class GPOConnection(GPConnection):
             text = text.encode('utf-8')
         try:
             self.conn.unlink(path)
+        except Exception as e:
+            if e.args[0] != 0xC0000034: # Object not found
+                ycpbuiltins.y2warning(str(e))
+        try:
             self.conn.savefile(path, text)
         except Exception as e:
             if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
