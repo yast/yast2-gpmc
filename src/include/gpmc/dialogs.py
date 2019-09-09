@@ -460,14 +460,13 @@ class GPME:
                 computer_config
             ),
         ]
-        if ENABLE_EXPERIMENTAL:
-            items.append(
-                Item('User Configuration', True,
-                    user_config
-                )
+        items.append(
+            Item('User Configuration', True,
+                user_config
             )
+        )
 
-        contents = Tree(Id('gpme_tree'), Opt('notify'), selected_gpo[1]['displayName'][-1],
+        contents = Tree(Id('gpme_tree'), Opt('notify', 'immediate'), selected_gpo[1]['displayName'][-1],
             items
         )
         return contents
@@ -482,7 +481,7 @@ class GPMC:
         selected_gpo = None
         self.__setup_menus()
         DeleteButtonBox()
-        ycred = YCreds(creds, auto_krb5_creds=False)
+        ycred = YCreds(creds)
         def cred_valid():
             try:
                 self.q = GPConnection(lp, creds)
@@ -493,7 +492,10 @@ class GPMC:
                 ycpbuiltins.y2error(str(e))
             return False
         self.cred_valid = cred_valid
-        self.got_creds = ycred.Show(self.cred_valid)
+        if not self.cred_valid():
+            self.got_creds = ycred.Show(self.cred_valid)
+        else:
+            self.got_creds = True
 
     def __setup_menus(self, actions=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},

@@ -98,16 +98,11 @@ def dn_to_path(realm, dn):
 def parse_gplink(gplink):
     '''parse a gPLink into an array of dn and options'''
     ret = {}
-    a = gplink.split(b']')
-    for g in a:
-        if not g:
-            continue
-        d = g.split(b';')
-        if len(d) != 2 or not d[0].startswith(b"[LDAP://"):
-            raise RuntimeError("Badly formed gPLink '%s'" % g)
+    a = re.findall(b'(LDAP://[^;]*);(\d+)', gplink)
+    for d in a:
         options = bin(int(d[1]))[2:].zfill(2)
-        name = d[0][8:].split(b',')[0][3:].decode()
-        ret[name] = {'enforced' : 'Yes' if int(options[-2]) else 'No', 'enabled' : 'No' if int(options[-1]) else 'Yes', 'dn' : d[0][8:].decode(), 'options' : int(d[1])}
+        name = d[0][7:].split(b',')[0][3:].decode()
+        ret[name] = {'enforced' : 'Yes' if int(options[-2]) else 'No', 'enabled' : 'No' if int(options[-1]) else 'Yes', 'dn' : d[0][7:].decode(), 'options' : int(d[1])}
     return ret
 
 def encode_gplink(gplist):
@@ -580,6 +575,10 @@ class GPOConnection(GPConnection):
             text = text.encode('utf-8')
         try:
             self.conn.unlink(path)
+        except Exception as e:
+            if e.args[0] != 0xC0000034: # Object not found
+                ycpbuiltins.y2warning(str(e))
+        try:
             self.conn.savefile(path, text)
         except Exception as e:
             if e.args[0] == 0xC000003A: # STATUS_OBJECT_PATH_NOT_FOUND
