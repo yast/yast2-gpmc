@@ -17,7 +17,7 @@
 
 
 Name:           yast2-gpmc
-Version:        1.4.4
+Version:        1.4.5
 Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0-only

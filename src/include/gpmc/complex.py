@@ -29,6 +29,7 @@ from samba.dcerpc import preg
 from adcommon.creds import kinit_for_gssapi
 from adcommon.yldap import Ldap, LdapException, SCOPE_SUBTREE, SCOPE_ONELEVEL, SCOPE_BASE, addlist, modlist
 from adcommon.strings import strcmp, strcasecmp
+from samba import NTSTATUSError
 
 def open_bytes(filename):
     if six.PY3:
@@ -417,7 +418,14 @@ class GPOConnection(GPConnection):
 
     def list(self, path):
         path = os.path.relpath(os.path.join(self.path, path).replace('\\', '/'))
-        return self.conn.list(path)
+        try:
+            return self.conn.list(path)
+        except NTSTATUSError as e:
+            if e.args[0] == 0xC0000034: # Object not found
+                ycpbuiltins.y2warning(str(e))
+                return []
+            else:
+                raise
 
     def parse(self, filename):
         if len(re.findall('CN=[A-Za-z ]+,', filename)) > 0:
