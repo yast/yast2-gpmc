@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Thu Sep 12 14:47:41 MDT 2019 - dmulder@suse.com
+
+- Remove ldap module use of MOD_DELETE and MOD_ADD; (bsc#1150616);
+- 1.4.6
+
+-------------------------------------------------------------------
 Thu Sep 12 20:26:18 UTC 2019 - dmulder@suse.com
 
 - Ignore directory listing if directory doesn't exist; (bsc#1150614);

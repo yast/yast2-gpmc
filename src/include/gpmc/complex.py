@@ -251,9 +251,9 @@ class GPConnection(Ldap):
 
         if gplist:
             gplink_str = encode_gplink(gplist)
-            self.ldap_modify(container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None), (ldap.MOD_ADD, 'gPLink', [gplink_str.encode('utf-8')])]))
+            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
         else:
-            self.ldap_modify(container_dn, stringify_ldap([(ldap.MOD_DELETE, 'gPLink', None)]))
+            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None)]))
 
     def delete_gpo(self, displayName):
         msg = self.gpo_list(displayName)
