@@ -496,8 +496,8 @@ class GPMC:
             self.got_creds = ycred.Show(self.cred_valid)
         else:
             self.got_creds = True
-        self.realm_dn = self.q.realm_to_dn(self.realm)
         self.realm = lp.get('realm')
+        self.realm_dn = self.q.realm_to_dn(self.realm)
 
     def __setup_menus(self, actions=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
