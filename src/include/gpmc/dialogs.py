@@ -484,9 +484,9 @@ class GPMC:
         ycred = YCreds(creds)
         def cred_valid():
             try:
+                lp.set('realm', creds.get_domain())
                 self.q = GPConnection(lp, creds)
                 self.gpos = self.q.gpo_list()
-                self.realm_dn = self.q.realm_to_dn(self.realm)
                 return True
             except Exception as e:
                 ycpbuiltins.y2error(str(e))
@@ -496,6 +496,8 @@ class GPMC:
             self.got_creds = ycred.Show(self.cred_valid)
         else:
             self.got_creds = True
+        self.realm_dn = self.q.realm_to_dn(self.realm)
+        self.realm = lp.get('realm')
 
     def __setup_menus(self, actions=None):
         menus = [{'title': '&File', 'id': 'file', 'type': 'Menu'},
