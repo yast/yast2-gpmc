@@ -30,6 +30,7 @@ from adcommon.creds import kinit_for_gssapi
 from adcommon.yldap import Ldap, LdapException, SCOPE_SUBTREE, SCOPE_ONELEVEL, SCOPE_BASE, addlist, modlist
 from adcommon.strings import strcmp, strcasecmp
 from samba import NTSTATUSError
+from tempfile import NamedTemporaryFile
 
 def open_bytes(filename):
     if six.PY3:
@@ -329,7 +330,12 @@ class GPOConnection(GPConnection):
         self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
         # the SMB bindings rely on having a s3 loadparm
         s3_lp = s3param.get_context()
-        s3_lp.load(self.lp.configfile)
+        if self.lp.configfile:
+            s3_lp.load(self.lp.configfile)
+        else:
+            with NamedTemporaryFile('w') as smb_conf:
+                smb_conf.write('[global]\nREALM = %s' % self.realm)
+                s3_lp.load(smb_conf.name)
         s3_lp.set('realm', self.lp.get('realm'))
         try:
             self.conn = smb.Conn(self.dc_hostname, service, lp=s3_lp, creds=self.creds, sign=True)
