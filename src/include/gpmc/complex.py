@@ -13,7 +13,6 @@ import os.path, sys
 from samba.net import Net
 from samba.dcerpc import nbt
 from subprocess import Popen, PIPE
-import uuid
 import re
 import traceback
 import ldb
@@ -30,6 +29,11 @@ from adcommon.creds import kinit_for_gssapi
 from adcommon.yldap import Ldap, LdapException, SCOPE_SUBTREE, SCOPE_ONELEVEL, SCOPE_BASE, addlist, modlist
 from adcommon.strings import strcmp, strcasecmp
 from samba import NTSTATUSError
+from tempfile import NamedTemporaryFile
+from optparse import OptionParser
+from samba.netcmd import gpo
+from samba.netcmd import CommandError
+from samba import NTSTATUSError, WERRORError
 
 def open_bytes(filename):
     if six.PY3:
@@ -113,6 +117,25 @@ def encode_gplink(gplist):
         ret += "[LDAP://%s;%d]" % (g['dn'], g['options'])
     return ret
 
+def smb_connection(dc_hostname, service, lp, creds, sign=False):
+    # SMB connect to DC
+    # the SMB bindings rely on having a s3 loadparm
+    s3_lp = s3param.get_context()
+    if lp.configfile:
+        s3_lp.load(lp.configfile)
+    else:
+        with NamedTemporaryFile('w') as smb_conf:
+            smb_conf.write('[global]\nREALM = %s' % lp.get('realm'))
+            s3_lp.load(smb_conf.name)
+    try:
+        conn = smb.Conn(dc_hostname, service, lp=s3_lp, creds=creds, sign=sign)
+    except Exception:
+        raise CommandError("Error connecting to '%s' using SMB" % dc_hostname)
+    return conn
+
+# The samba-tool smb_connection function doesn't handle a missing smb.conf
+gpo.smb_connection = smb_connection
+
 class GPConnection(Ldap):
     def __init__(self, lp, creds):
         super().__init__(lp, creds)
@@ -142,10 +165,6 @@ class GPConnection(Ldap):
         res = self.ldap_search(self.__well_known_container('users'), SCOPE_SUBTREE, '(objectSID=%s)' % sid, stringify_ldap(attrs))
         return res[0][1]
 
-    def get_domain_sid(self):
-        res = self.ldap_search(self.realm_to_dn(self.realm), SCOPE_BASE, "(objectClass=*)", [])
-        return ndr_unpack(security.dom_sid, res[0][1]["objectSid"][0])
-
     def gpo_list(self, displayName=None, attrs=[]):
         result = None
         res = self.__well_known_container('system')
@@ -160,125 +179,25 @@ class GPConnection(Ldap):
         self.ldap_modify(dn, stringify_ldap([(1, key, None), (0, key, value)]))
 
     def create_gpo(self, displayName, container=None):
-        msg = self.gpo_list(displayName)
-        if len(msg) > 0:
-            ycpbuiltins.y2debug("A GPO already existing with name '%s'" % displayName)
-            return
-
-        gpouuid = uuid.uuid4()
-        realm_dn = self.realm_to_dn(self.realm)
-        name = '{%s}' % str(gpouuid).upper()
-        dn = 'CN=%s,CN=Policies,CN=System,%s' % (name, realm_dn)
-        unc_path = "\\\\%s\\sysvol\\%s\\Policies\\%s" % (self.realm, self.realm, name)
-        ldap_mod = { 'displayName': [displayName.encode('utf-8')], 'gPCFileSysPath': [unc_path.encode('utf-8')], 'objectClass': [b'groupPolicyContainer'], 'gPCFunctionalityVersion': [b'2'], 'flags': [b'0'], 'versionNumber': [b'0'] }
-        # gPCMachineExtensionNames MUST be assigned as gpos are modified (currently not doing this!)
-
-        machine_dn = 'CN=Machine,%s' % dn
-        user_dn = 'CN=User,%s' % dn
-        sub_ldap_mod = { 'objectClass': [b'container'] }
-
-        gpo = GPOConnection(self.lp, self.creds, unc_path)
-        try:
-            self.ldap_add(dn, addlist(ldap_mod))
-            self.ldap_add(machine_dn, addlist(stringify_ldap(sub_ldap_mod)))
-            self.ldap_add(user_dn, addlist(stringify_ldap(sub_ldap_mod)))
-        except LdapException as e:
-            ycpbuiltins.y2error(traceback.format_exc())
-            ycpbuiltins.y2error('ldap.add_s: %s\n' % e.info if e.info else e.msg)
-        gpo.initialize_empty_gpo(displayName)
+        cmd_create = gpo_create(self.lp, self.creds, self)
+        ycpbuiltins.y2debug(cmd_create.run(displayName))
+        cmd_setlink = gpo_setlink(self.lp, self.creds, self)
         if container:
-            self.set_link(dn, container)
-
-    def set_link(self, gpo_dn, container_dn, disabled=False, enforced=False):
-        gplink_options = 0
-        if disabled:
-            gplink_options |= (1 << 0)
-        if enforced:
-            gplink_options |= (1 << 1)
-
-        # Check if valid Container DN
-        msg = self.ldap_search(container_dn, SCOPE_BASE,
-                               "(objectClass=*)",
-                               stringify_ldap(['gPLink']))[0][1]
-
-        # Update existing GPlinks or Add new one
-        existing_gplink = False
-        if 'gPLink' in msg:
-            gplist = parse_gplink(msg['gPLink'][0])
-            gplist = [gplist[k] for k in gplist]
-            existing_gplink = True
-            found = False
-            for g in gplist:
-                if strcasecmp(g['dn'], gpo_dn):
-                    found = True
-                    break
-            if found:
-                ycpbuiltins.y2debug("GPO '%s' already linked to this container" % gpo)
-                return
-            else:
-                gplist.insert(0, { 'dn' : gpo_dn, 'options' : gplink_options })
-        else:
-            gplist = []
-            gplist.append({ 'dn' : gpo_dn, 'options' : gplink_options })
-
-        gplink_str = encode_gplink(gplist)
-
-        if existing_gplink:
-            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
-        else:
-            self.ldap_modify(container_dn, stringify_ldap([(0, 'gPLink', [gplink_str.encode('utf-8')])]))
+            ycpbuiltins.y2debug(cmd_setlink.run(container, cmd_create.get_name()))
 
     def delete_link(self, gpo_dn, container_dn):
-        # Check if valid Container DN
-        msg = self.ldap_search(container_dn, SCOPE_BASE,
-                               "(objectClass=*)",
-                               stringify_ldap(['gPLink']))[0][1]
-
-        found = False
-        if 'gPLink' in msg:
-            gplist = parse_gplink(msg['gPLink'][0])
-            gplist = [gplist[k] for k in gplist]
-            for g in gplist:
-                if strcasecmp(g['dn'], gpo_dn):
-                    gplist.remove(g)
-                    found = True
-                    break
-        else:
-            raise Exception("No GPO(s) linked to this container")
-
-        if not found:
-            raise Exception("GPO '%s' not linked to this container" % gpo_dn)
-
-        if gplist:
-            gplink_str = encode_gplink(gplist)
-            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
-        else:
-            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None)]))
+        cmd_dellink = gpo_dellink(self.lp, self.creds, self)
+        gpo_cn = re.split(',?\w\w=', gpo_dn)[1]
+        ycpbuiltins.y2debug(cmd_dellink.run(container_dn, gpo_cn))
 
     def delete_gpo(self, displayName):
-        msg = self.gpo_list(displayName)
+        msg = self.gpo_list(displayName, attrs=['cn'])
         if len(msg) == 0:
             raise Exception("GPO '%s' does not exist" % displayName)
+        gpo_cn = msg[0][1]['cn'][0]
 
-        unc_path = msg[0][1]['gPCFileSysPath'][0]
-        gpo_dn = msg[0][1]['distinguishedName'][0]
-
-        # Remove links before deleting
-        linked_containers = self.get_gpo_containers(gpo_dn)
-        for container in linked_containers:
-            self.delete_link(gpo_dn, container['distinguishedName'][0].decode())
-
-        # Remove LDAP entries
-        self.ldap_delete("CN=User,%s" % str(gpo_dn))
-        self.ldap_delete("CN=Machine,%s" % str(gpo_dn))
-        self.ldap_delete(gpo_dn)
-        try:
-            # Remove GPO files
-            gpo = GPOConnection(self.lp, self.creds, unc_path)
-            gpo.cleanup_gpo()
-        except Exception as e:
-            ycpbuiltins.y2error(traceback.format_exc())
-            ycpbuiltins.y2error(str(e))
+        cmd_del = gpo_del(self.lp, self.creds, self)
+        ycpbuiltins.y2debug(cmd_del.run(gpo_cn))
 
     def get_gpo_containers(self, gpo):
         '''lists dn of containers for a GPO'''
@@ -327,15 +246,11 @@ class GPOConnection(GPConnection):
         self.name = gpo_path.split('\\')[-1]
         self.realm_dn = self.realm_to_dn(self.realm)
         self.gpo_dn = 'CN=%s,CN=Policies,CN=System,%s' % (self.name, self.realm_dn)
-        # the SMB bindings rely on having a s3 loadparm
-        s3_lp = s3param.get_context()
-        s3_lp.load(self.lp.configfile)
-        s3_lp.set('realm', self.lp.get('realm'))
         try:
-            self.conn = smb.Conn(self.dc_hostname, service, lp=s3_lp, creds=self.creds, sign=True)
-        except Exception as e:
+            self.conn = smb_connection(self.dc_hostname, service, self.lp, self.creds, sign=True)
+        except CommandError as e:
             ycpbuiltins.y2error(traceback.format_exc())
-            ycpbuiltins.y2error("Exception %s"%str(e))
+            ycpbuiltins.y2error(e.args[-1])
             self.conn = None
 
     def update_machine_gpe_ini(self, extension):
@@ -358,32 +273,6 @@ class GPOConnection(GPConnection):
         machine_extension_versions += '[%s:%d]' % (extension, version-1)
         ini_conf.set('General', 'MachineExtensionVersions', machine_extension_versions)
         self.write('Group Policy\\GPE.INI', ini_conf)
-
-    def initialize_empty_gpo(self, displayName):
-        # Get new security descriptor
-        ds_sd_flags = ( security.SECINFO_OWNER |
-                        security.SECINFO_GROUP |
-                        security.SECINFO_DACL )
-        msg = self.gpo_list(displayName, attrs=stringify_ldap(['nTSecurityDescriptor']))
-        ds_sd_ndr = msg[0][1]['nTSecurityDescriptor'][0]
-        ds_sd = ndr_unpack(security.descriptor, ds_sd_ndr).as_sddl()
-
-        # Create a file system security descriptor
-        domain_sid = self.get_domain_sid()
-        sddl = dsacl2fsacl(ds_sd, domain_sid)
-        fs_sd = security.descriptor.from_sddl(sddl, domain_sid)
-
-        self.__smb_mkdir_p('\\'.join([self.path, 'MACHINE']))
-        self.__smb_mkdir_p('\\'.join([self.path, 'USER']))
-
-        # Set ACL
-        sio = ( security.SECINFO_OWNER |
-                security.SECINFO_GROUP |
-                security.SECINFO_DACL |
-                security.SECINFO_PROTECTED_DACL )
-        self.conn.set_acl(self.path, fs_sd, sio)
-
-        self.__increment_gpt_ini()
 
     def cleanup_gpo(self):
         self.conn.deltree(self.path)
@@ -625,3 +514,96 @@ class GPOConnection(GPConnection):
                 else:
                     ycpbuiltins.y2error(e.args[1])
             return filename
+
+class SambaOptions():
+    def __init__(self, lp):
+        self.lp = lp
+
+    def get_loadparm(self):
+        return self.lp
+
+class CredentialsOptions():
+    def __init__(self, creds):
+        self.creds = creds
+
+    def get_credentials(self, *args, **kwargs):
+        return self.creds
+
+class gpo_create(gpo.cmd_create):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def get_name(self):
+        return self.gpo_name
+
+    def run(self, displayname):
+        try:
+            super().run(displayname, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
+
+class gpo_setlink(gpo.cmd_setlink):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def run(self, container_dn, gpo):
+        try:
+            super().run(container_dn, gpo, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
+
+class gpo_dellink(gpo.cmd_dellink):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def run(self, container, gpo):
+        try:
+            super().run(container, gpo, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
+
+class gpo_del(gpo.cmd_del):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def run(self, gpo):
+        try:
+            super().run(gpo, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
