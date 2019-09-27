@@ -186,56 +186,18 @@ class GPConnection(Ldap):
             ycpbuiltins.y2debug(cmd_setlink.run(container, cmd_create.get_name()))
 
     def delete_link(self, gpo_dn, container_dn):
-        # Check if valid Container DN
-        msg = self.ldap_search(container_dn, SCOPE_BASE,
-                               "(objectClass=*)",
-                               stringify_ldap(['gPLink']))[0][1]
-
-        found = False
-        if 'gPLink' in msg:
-            gplist = parse_gplink(msg['gPLink'][0])
-            gplist = [gplist[k] for k in gplist]
-            for g in gplist:
-                if strcasecmp(g['dn'], gpo_dn):
-                    gplist.remove(g)
-                    found = True
-                    break
-        else:
-            raise Exception("No GPO(s) linked to this container")
-
-        if not found:
-            raise Exception("GPO '%s' not linked to this container" % gpo_dn)
-
-        if gplist:
-            gplink_str = encode_gplink(gplist)
-            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None), (0, 'gPLink', [gplink_str.encode('utf-8')])]))
-        else:
-            self.ldap_modify(container_dn, stringify_ldap([(1, 'gPLink', None)]))
+        cmd_dellink = gpo_dellink(self.lp, self.creds, self)
+        gpo_cn = re.split(',?\w\w=', gpo_dn)[1]
+        ycpbuiltins.y2debug(cmd_dellink.run(container_dn, gpo_cn))
 
     def delete_gpo(self, displayName):
-        msg = self.gpo_list(displayName)
+        msg = self.gpo_list(displayName, attrs=['cn'])
         if len(msg) == 0:
             raise Exception("GPO '%s' does not exist" % displayName)
+        gpo_cn = msg[0][1]['cn'][0]
 
-        unc_path = msg[0][1]['gPCFileSysPath'][0]
-        gpo_dn = msg[0][1]['distinguishedName'][0]
-
-        # Remove links before deleting
-        linked_containers = self.get_gpo_containers(gpo_dn)
-        for container in linked_containers:
-            self.delete_link(gpo_dn, container['distinguishedName'][0].decode())
-
-        # Remove LDAP entries
-        self.ldap_delete("CN=User,%s" % str(gpo_dn))
-        self.ldap_delete("CN=Machine,%s" % str(gpo_dn))
-        self.ldap_delete(gpo_dn)
-        try:
-            # Remove GPO files
-            gpo = GPOConnection(self.lp, self.creds, unc_path)
-            gpo.cleanup_gpo()
-        except Exception as e:
-            ycpbuiltins.y2error(traceback.format_exc())
-            ycpbuiltins.y2error(str(e))
+        cmd_del = gpo_del(self.lp, self.creds, self)
+        ycpbuiltins.y2debug(cmd_del.run(gpo_cn))
 
     def get_gpo_containers(self, gpo):
         '''lists dn of containers for a GPO'''
@@ -603,6 +565,44 @@ class gpo_setlink(gpo.cmd_setlink):
     def run(self, container_dn, gpo):
         try:
             super().run(container_dn, gpo, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
+
+class gpo_dellink(gpo.cmd_dellink):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def run(self, container, gpo):
+        try:
+            super().run(container, gpo, sambaopts=self.sambaopts, credopts=self.credopts)
+        except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
+            ycpbuiltins.y2error(traceback.format_exc())
+            ycpbuiltins.y2error(str(e))
+        return self.outf.getvalue()
+
+class gpo_del(gpo.cmd_del):
+    def __init__(self, lp, creds, samdb):
+        super().__init__()
+        self.sambaopts = SambaOptions(lp)
+        self.credopts = CredentialsOptions(creds)
+        self.samdb = samdb
+        self.outf = StringIO()
+
+    def samdb_connect(self):
+        pass # Our samdb is already connected
+
+    def run(self, gpo):
+        try:
+            super().run(gpo, sambaopts=self.sambaopts, credopts=self.credopts)
         except (CommandError, NTSTATUSError, WERRORError, Exception) as e:
             ycpbuiltins.y2error(traceback.format_exc())
             ycpbuiltins.y2error(str(e))
