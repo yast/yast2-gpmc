@@ -66,5 +66,6 @@ modifying Group Policy Objects in Active Directory.
 %{yast_desktopdir}
 %{yast_metainfodir}
 %license COPYING
+%doc %{yast_docdir}
 
 %changelog
