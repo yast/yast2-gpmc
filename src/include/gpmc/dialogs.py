@@ -61,7 +61,7 @@ class GPME:
                     conf = Policies[policy]['new']()
                 if str(ret) == 'policy_table':
                     selection = UI.QueryWidget(str(ret), 'CurrentItem')
-                    values = Policies[policy]['opts'](conf)[selection]['values']
+                    values = Policies[policy]['opts'](conf, policy)[selection]['values']
                 elif str(ret) == 'add_policy':
                     values = Policies[policy]['add'](conf)
                 UI.SetApplicationTitle('%s Properties' % selection)
@@ -216,7 +216,7 @@ class GPME:
         conf = self.conn.parse(terms['file'])
         if conf is None:
             conf = terms['new']()
-        opts = terms['opts'](conf)
+        opts = terms['opts'](conf, label)
         header = tuple(terms['header']())
         header = Header(*header)
         for key in opts:
@@ -334,7 +334,7 @@ class GPME:
                                 },
                             } )
 
-                    def policy_generator(conf):
+                    def policy_generator(conf, parent):
                         values = {}
                         for policy in policies:
                             if policy.find('parentCategory').attrib['ref'] != parent:
