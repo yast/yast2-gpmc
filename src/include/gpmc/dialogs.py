@@ -281,7 +281,11 @@ class GPME:
                 for category in categories:
                     disp = fetch_attr(category, 'displayName', strings, presentations)
                     my_ref = category.attrib['name']
-                    par_ref = category.find('parentCategory').attrib['ref']
+                    par = category.find('parentCategory')
+                    if par is None:
+                        par_ref = ''
+                    else:
+                        par_ref = par.attrib['ref']
 
                     if my_ref not in items.keys():
                         items[my_ref] = {}
