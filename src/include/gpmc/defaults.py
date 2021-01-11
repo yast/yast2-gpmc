@@ -34,24 +34,52 @@ def set_admx_value(conf, reg_key, key, val, val_type):
     elif val_type == 'CheckBox':
         e.type = 4
         e.data = 1 if val else 0
+
     entries = []
-    for x in conf.entries:
-        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
-            entries.append(x)
-    entries.append(e)
+    if val_type == 'ListBox':
+        for v in val:
+            e = preg.entry()
+            e.keyname = six.b(reg_key)
+            e.valuename = six.b(v)
+            e.type = 1
+            e.data = six.b(v)
+            entries.append(e)
+    else:
+        for x in conf.entries:
+            if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
+                entries.append(x)
+        entries.append(e)
+
     conf.num_entries = len(entries)
     conf.entries = entries
 
-def get_admx_value(conf, reg_key, key):
-    for e in conf.entries:
-        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
-            return e.data
+def get_admx_value(conf, val_type, reg_key, key):
+    if val_type == 'ListBox':
+        ret = []
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key):
+                if e.data.strip():
+                    ret.append(e.data)
+        return ret
+    else:
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+                return e.data
     return None
 
-def get_admx_configured(conf, reg_key, key):
-    for e in conf.entries:
-        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+def get_admx_configured(conf, val_type, reg_key, key):
+    if val_type == 'ListBox':
+        ret = []
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key):
+                if e.data.strip():
+                    ret.append(e.data)
+        if len(ret) > 0:
             return True
+    else:
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+                return True
     return False
 
 def select_script(title, policy, conn):
