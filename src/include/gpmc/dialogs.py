@@ -61,16 +61,19 @@ class GPME:
                     conf = Policies[policy]['new']()
                 if str(ret) == 'policy_table':
                     selection = UI.QueryWidget(str(ret), 'CurrentItem')
-                    values = Policies[policy]['opts'](conf)[selection]['values']
+                    values = Policies[policy]['opts'](conf, policy)[selection]['values']
                 elif str(ret) == 'add_policy':
                     values = Policies[policy]['add'](conf)
                 UI.SetApplicationTitle('%s Properties' % selection)
                 UI.OpenDialog(self.__change_setting(values))
+                list_results = None
                 while True:
                     subret = UI.UserInput()
                     if str(subret) == 'ok_change_setting' or str(subret) == 'apply_change_setting':
                         for k in values.keys():
-                            if 'configurable' in values[k]['input'] and values[k]['input']['configurable']:
+                            if list_results:
+                                value = list_results
+                            elif 'configurable' in values[k]['input'] and values[k]['input']['configurable']:
                                 configured = UI.QueryWidget('configured_%s' % k, 'Value')
                                 if configured or configured == None:
                                     value = UI.QueryWidget('entry_%s' % k, 'Value')
@@ -95,6 +98,8 @@ class GPME:
                         for k in others.keys():
                             UI.ReplaceWidget('text_entry_%s' % k, self.__button_entry(k, values, others[k]))
                         continue
+                    elif str(subret) == 'show':
+                        list_results = self.__change_list(values)
                     if str(subret) == 'cancel_change_setting' or str(subret) == 'ok_change_setting':
                         UI.CloseDialog()
                         UI.SetApplicationTitle('Group Policy Management Editor')
@@ -106,6 +111,73 @@ class GPME:
                 Policies[policy]['delete'](conf, selection)
 
         return Symbol(ret)
+
+    def __change_list(self, values):
+        head = values['value']['input']['options']['present'] if values['value']['input']['options'] and 'present' in values['value']['input']['options'] else ''
+        vals = values['value']['get']
+        items = []
+        for i in range(0, len(vals)):
+            items.append(Item(Id(i), vals[i]))
+        dialog = MinHeight(20, MinWidth(50, HBox(HSpacing(), VBox(
+            VSpacing(),
+            Table(Id('values_table'), Opt('notify'), Header(head), items),
+            VSpacing(),
+            Right(HBox(
+                PushButton(Id('ok_list_item'), 'OK'),
+                PushButton(Id('cancel_list_item'), 'Cancel'),
+                PushButton(Id('add_list_item'), 'Add...'),
+                PushButton(Id('remove_list_item'), 'Remove'),
+            )),
+            VSpacing(),
+        ), HSpacing() )))
+        UI.OpenDialog(dialog)
+        while True:
+            subret = UI.UserInput()
+            if str(subret) == 'cancel_list_item':
+                UI.CloseDialog()
+                return None
+            elif str(subret) == 'add_list_item':
+                item = self.__add_item()
+                vals = UI.QueryWidget('values_table', 'Items')
+                items = []
+                for i in range(0, len(vals)):
+                    items.append(Item(Id(i), vals[i][1]))
+                items.append(Item(Id(i+1), item))
+                UI.ChangeWidget('values_table', 'Items', items)
+            elif str(subret) == 'remove_list_item':
+                highlighted = UI.QueryWidget('values_table', 'CurrentItem')
+                vals = UI.QueryWidget('values_table', 'Items')
+                items = [Item(Id(i[0][0]), i[1]) for i in vals if i[0][0] != highlighted]
+                UI.ChangeWidget('values_table', 'Items', items)
+            elif str(subret) == 'ok_list_item':
+                out = UI.QueryWidget('values_table', 'Items')
+                UI.CloseDialog()
+                return [i[1] for i in out]
+
+    def __add_item(self):
+        dialog = HBox(
+            HSpacing(),
+            VBox(
+                Label('Enter the item to be added:'),
+                TextEntry(Id('add_item'), Opt('hstretch'), ''),
+            ),
+            HSpacing(),
+            VBox(
+                PushButton(Id('ok_add_item'), 'OK'),
+                PushButton(Id('cancel_add_item'), 'Cancel'),
+            ),
+            HSpacing(),
+        )
+        UI.OpenDialog(dialog)
+        while True:
+            subret = UI.UserInput()
+            if str(subret) == 'cancel_add_item':
+                UI.CloseDialog()
+                return None
+            elif str(subret) == 'ok_add_item':
+                ret = UI.QueryWidget('add_item', 'Value')
+                UI.CloseDialog()
+                return ret
 
     def __button_entry(self, k, values, value):
         return TextEntry(Id('entry_%s' % k), Opt('hstretch'), values[k]['title'], value)
@@ -126,6 +198,7 @@ class GPME:
             k = value[0]
             if not value[-1]['input']:
                 continue
+            summary = value[-1]['input']['options']['present'] if value[-1]['input']['options'] and 'present' in value[-1]['input']['options'] else ''
             if strcmp(value[-1]['input']['type'], 'TextEntry'):
                 configurable = Empty()
                 configured = value[-1]['get'] != None
@@ -166,23 +239,36 @@ class GPME:
                 items.append(Top(MinWidth(30, Left(
                     ReplacePoint(Id('int_field_%s' % k), VBox(
                         configurable,
+                        Label(summary),
                         IntField(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], 0, 999999999, value[-1]['get'] if value[-1]['get'] else 0)
                     ))
                 ))))
             elif strcmp(value[-1]['input']['type'], 'CheckBox'):
                 if 'configurable' in value[-1]['input'] and value[-1]['input']['configurable']:
                     disp = value[-1]['valstr'](value[-1]['get'])
-                    items.append(Top(Left(
+                    items.append(Top(Left(VBox(
+                        Label(summary),
                         ReplacePoint(Id('check_box_%s' % k), RadioButtonGroup(Id('entry_%s' % k), VBox(
                             Left(RadioButton(Id(None), 'Not Configured', strcmp(disp, 'Not configured'))),
                             Left(RadioButton(Id(True), 'Enabled', strcmp(disp, 'Enabled'))),
                             Left(RadioButton(Id(False), 'Disabled', strcmp(disp, 'Disabled')))
                         )))
-                    )))
+                    ))))
                 else:
                     items.append(Top(Left(
                         ReplacePoint(Id('check_box_%s' % k), CheckBox(Id('entry_%s' % k), Opt('hstretch'), value[-1]['title'], bool(value[-1]['get']) if value[-1]['get'] else False))
                     )))
+            elif strcmp(value[-1]['input']['type'], 'ListBox'):
+                disp = value[-1]['valstr'](value[-1]['get'])
+                items.append(Top(Left(VBox(
+                    Label(summary),
+                    ReplacePoint(Id('list_box_%s' % k), RadioButtonGroup(Id('entry_%s' % k), VBox(
+                        Left(RadioButton(Id(None), 'Not Configured', strcmp(disp, 'Not configured'))),
+                        Left(RadioButton(Id(True), 'Enabled', strcmp(disp, 'Enabled'))),
+                        Left(RadioButton(Id(False), 'Disabled', strcmp(disp, 'Disabled'))),
+                        Left(PushButton(Id('show'), 'Show...'))
+                    )))
+                ))))
         if reverse:
             items.reverse()
         items = tuple(items)
@@ -216,7 +302,7 @@ class GPME:
         conf = self.conn.parse(terms['file'])
         if conf is None:
             conf = terms['new']()
-        opts = terms['opts'](conf)
+        opts = terms['opts'](conf, label)
         header = tuple(terms['header']())
         header = Header(*header)
         for key in opts:
@@ -281,7 +367,11 @@ class GPME:
                 for category in categories:
                     disp = fetch_attr(category, 'displayName', strings, presentations)
                     my_ref = category.attrib['name']
-                    par_ref = category.find('parentCategory').attrib['ref']
+                    par = category.find('parentCategory')
+                    if par is None:
+                        par_ref = ''
+                    else:
+                        par_ref = par.attrib['ref']
 
                     if my_ref not in items.keys():
                         items[my_ref] = {}
@@ -323,14 +413,18 @@ class GPME:
                                 'value' : {
                                     'order' : 1,
                                     'title' : key,
-                                    'get' : get_admx_value(conf, reg_key, key),
+                                    'get' : get_admx_value(conf, val_type, reg_key, key),
                                     'set' : (lambda v : set_admx_value(conf, reg_key, key, v, val_type)),
-                                    'valstr' : (lambda v : valstr(v) if get_admx_configured(conf, reg_key, key) else 'Not configured'),
+                                    'valstr' : (lambda v : valstr(v) if get_admx_configured(conf, val_type, reg_key, key) else 'Not configured'),
                                     'input' : _input,
                                 },
                             } )
 
-                    def policy_generator(conf):
+                    def policy_generator(conf, parent):
+                        def fetch_presentation(pid, typ):
+                            pres = presentations.find('presentation[@id="%s"]' % pid)
+                            if pres:
+                                return pres.find(typ).text
                         values = {}
                         for policy in policies:
                             if policy.find('parentCategory').attrib['ref'] != parent:
@@ -340,7 +434,10 @@ class GPME:
                             values[disp] = {}
                             val_type = None
                             elements = policy.find('elements')
-                            defined = get_admx_configured(conf, policy.attrib['key'], disp)
+                            reg_key = policy.attrib['key']
+                            opts = None
+                            elist = elements.find('list')
+                            pid = policy.attrib['name']
                             if elements.find('text') is not None:
                                 val_type = 'TextEntry'
                                 val_str = (lambda v : v if v else '')
@@ -350,12 +447,20 @@ class GPME:
                             elif elements.find('boolean') is not None:
                                 val_type = 'CheckBox'
                                 val_str = (lambda v : 'Disabled' if int(v) == 0 else 'Enabled')
+                            elif elist is not None:
+                                val_type = 'ListBox'
+                                val_str = (lambda v : 'Disabled' if len(v) == 0 else 'Enabled')
+                                reg_key = elist.attrib['key']
+                                opts = {}
+                                opts['present'] = fetch_presentation(pid, 'listBox')
+                            else:
+                                raise NotImplementedError('Element of \'%s\' unknown' % disp)
                             values[disp]['values'] = Policies[parent]['values'](
-                                conf, policy.attrib['key'], disp, desc, val_str, val_type,
+                                conf, reg_key, disp, desc, val_str, val_type,
                                 {
                                     'type' : val_type,
                                     'configurable' : True,
-                                    'options' : None,
+                                    'options' : opts,
                                 },
                             )
                         return values

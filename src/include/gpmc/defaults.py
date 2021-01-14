@@ -34,24 +34,52 @@ def set_admx_value(conf, reg_key, key, val, val_type):
     elif val_type == 'CheckBox':
         e.type = 4
         e.data = 1 if val else 0
+
     entries = []
-    for x in conf.entries:
-        if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
-            entries.append(x)
-    entries.append(e)
+    if val_type == 'ListBox':
+        for v in val:
+            e = preg.entry()
+            e.keyname = six.b(reg_key)
+            e.valuename = six.b(v)
+            e.type = 1
+            e.data = six.b(v)
+            entries.append(e)
+    else:
+        for x in conf.entries:
+            if not (strcmp(x.keyname, reg_key) and strcmp(x.valuename, key)):
+                entries.append(x)
+        entries.append(e)
+
     conf.num_entries = len(entries)
     conf.entries = entries
 
-def get_admx_value(conf, reg_key, key):
-    for e in conf.entries:
-        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
-            return e.data
+def get_admx_value(conf, val_type, reg_key, key):
+    if val_type == 'ListBox':
+        ret = []
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key):
+                if e.data.strip():
+                    ret.append(e.data)
+        return ret
+    else:
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+                return e.data
     return None
 
-def get_admx_configured(conf, reg_key, key):
-    for e in conf.entries:
-        if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+def get_admx_configured(conf, val_type, reg_key, key):
+    if val_type == 'ListBox':
+        ret = []
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key):
+                if e.data.strip():
+                    ret.append(e.data)
+        if len(ret) > 0:
             return True
+    else:
+        for e in conf.entries:
+            if strcmp(e.keyname, reg_key) and strcmp(e.valuename, key):
+                return True
     return False
 
 def select_script(title, policy, conn):
@@ -172,7 +200,7 @@ def env_add(xml_conf):
 Policies = {
     'comp_passwd' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
-        'opts' : (lambda inf_conf : {
+        'opts' : (lambda inf_conf, label : {
             'MinimumPasswordAge' : {
                 'values' : Policies['comp_passwd']['values'](
                     inf_conf, 'MinimumPasswordAge', 'Minimum password age',
@@ -262,7 +290,7 @@ Policies = {
     },
     'comp_lockout' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
-        'opts' : (lambda inf_conf : {
+        'opts' : (lambda inf_conf, label : {
             'LockoutDuration' : {
                 'values' : Policies['comp_lockout']['values'](
                     inf_conf, 'LockoutDuration', 'Account lockout duration',
@@ -322,7 +350,7 @@ Policies = {
     },
     'comp_krb' : {
         'file' : '\\MACHINE\\Microsoft\\Windows NT\\SecEdit\\GptTmpl.inf',
-        'opts' : (lambda inf_conf : {
+        'opts' : (lambda inf_conf, label : {
             'MaxTicketAge' : {
                 'values' : Policies['comp_krb']['values'](
                     inf_conf, 'MaxTicketAge', 'Maximum lifetime for user ticket',
@@ -402,7 +430,7 @@ Policies = {
     },
     'comp_env_var' : {
         'file': '\\MACHINE\\Preferences\\EnvironmentVariables\\EnvironmentVariables.xml',
-        'opts' : (lambda xml_conf : {
+        'opts' : (lambda xml_conf, label : {
             a.attrib['name']: {
                 'values' : Policies['comp_env_var']['values'](a),
             } for a in xml_conf.findall('EnvironmentVariable')
@@ -471,7 +499,7 @@ Policies = {
     },
     'comp_scripts_startup': {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
-        'opts' : (lambda inf_conf : {
+        'opts' : (lambda inf_conf, label : {
             option : {
                 'values' : Policies['comp_scripts_startup']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Startup')
@@ -508,7 +536,7 @@ Policies = {
     },
     'comp_scripts_shutdown': {
         'file' : '\\MACHINE\\Scripts\\scripts.ini',
-        'opts' : (lambda inf_conf : {
+        'opts' : (lambda inf_conf, label : {
             option : {
                 'values' : Policies['comp_scripts_shutdown']['values'](inf_conf, option),
             } for option in iter_scripts_conf(inf_conf, 'Shutdown')
@@ -545,7 +573,7 @@ Policies = {
     },
     'comp_software_install': {
         'file' : 'CN=Packages,CN=Class Store,CN=Machine,%s',
-        'opts' : (lambda ldap_conf : {
+        'opts' : (lambda ldap_conf, label : {
             option : {
                 'values' : Policies['comp_software_install']['values'](ldap_conf, option)
             } for option in ldap_conf.keys()
@@ -593,7 +621,7 @@ Policies = {
     },
     'user_internet_maint_conn' : {
         'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
-        'opts' : (lambda ins_conf : {
+        'opts' : (lambda ins_conf, label : {
             'Proxy Settings' : {
                 'values' : {
                     'Name' : {
@@ -834,7 +862,7 @@ Policies = {
     },
     'user_internet_maint_urls' : {
         'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
-        'opts' : (lambda ins_conf : {
+        'opts' : (lambda ins_conf, label : {
             'Important URLs' : {
                 'values' : {
                     'Name' : {
@@ -902,7 +930,7 @@ Policies = {
     },
     'user_internet_maint_links' : {
         'file': '\\USER\\MICROSOFT\\IEAK\\install.ins',
-        'opts' : (lambda ins_conf : {
+        'opts' : (lambda ins_conf, label : {
 # need to handle these in a sub folder, and not like the others, since you can add multiple url links
             option : {
                 'values' : Policies['user_internet_maint_links']['values'](ins_conf, option),
