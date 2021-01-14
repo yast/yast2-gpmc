@@ -41,6 +41,7 @@ Requires:       samba-python3 >= 4.10.0
 Requires:       yast2
 Requires:       yast2-python3-bindings >= 4.0.0
 Requires:       yast2-adcommon-python >= 1.0
+Requires:       samba-ad-dc
 
 Provides:       yast-gpmc = %{version}
 Obsoletes:      yast-gpmc < %{version}

@@ -34,6 +34,9 @@ from optparse import OptionParser
 from samba.netcmd import gpo
 from samba.netcmd import CommandError
 from samba import NTSTATUSError, WERRORError
+from samba.samdb import SamDB
+from samba.auth import system_session
+import ldapurl
 
 def open_bytes(filename):
     if six.PY3:
@@ -534,7 +537,9 @@ class gpo_create(gpo.cmd_create):
         super().__init__()
         self.sambaopts = SambaOptions(lp)
         self.credopts = CredentialsOptions(creds)
-        self.samdb = samdb
+        self.samdb = SamDB(url=ldapurl.LDAPUrl('ldap://%s' % lp.get('realm')).initializeUrl(),
+                           session_info=system_session(),
+                           credentials=creds, lp=lp)
         self.outf = StringIO()
 
     def samdb_connect(self):
@@ -556,7 +561,9 @@ class gpo_setlink(gpo.cmd_setlink):
         super().__init__()
         self.sambaopts = SambaOptions(lp)
         self.credopts = CredentialsOptions(creds)
-        self.samdb = samdb
+        self.samdb = SamDB(url=ldapurl.LDAPUrl('ldap://%s' % lp.get('realm')).initializeUrl(),
+                           session_info=system_session(),
+                           credentials=creds, lp=lp)
         self.outf = StringIO()
 
     def samdb_connect(self):
@@ -575,7 +582,9 @@ class gpo_dellink(gpo.cmd_dellink):
         super().__init__()
         self.sambaopts = SambaOptions(lp)
         self.credopts = CredentialsOptions(creds)
-        self.samdb = samdb
+        self.samdb = SamDB(url=ldapurl.LDAPUrl('ldap://%s' % lp.get('realm')).initializeUrl(),
+                           session_info=system_session(),
+                           credentials=creds, lp=lp)
         self.outf = StringIO()
 
     def samdb_connect(self):
@@ -594,7 +603,9 @@ class gpo_del(gpo.cmd_del):
         super().__init__()
         self.sambaopts = SambaOptions(lp)
         self.credopts = CredentialsOptions(creds)
-        self.samdb = samdb
+        self.samdb = SamDB(url=ldapurl.LDAPUrl('ldap://%s' % lp.get('realm')).initializeUrl(),
+                           session_info=system_session(),
+                           credentials=creds, lp=lp)
         self.outf = StringIO()
 
     def samdb_connect(self):
