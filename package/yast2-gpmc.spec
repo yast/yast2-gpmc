@@ -17,7 +17,7 @@
 
 
 Name:           yast2-gpmc
-Version:        1.5.1
+Version:        1.5.2
 Release:        0
 Summary:        Group Policy Management Console for YaST
 License:        GPL-3.0-only
@@ -28,7 +28,6 @@ Source:         %{name}-%{version}.tar.bz2
 
 BuildRequires:  perl-XML-Writer
 BuildRequires:  python3
-BuildRequires:  update-desktop-files
 BuildRequires:  yast2
 BuildRequires:  yast2-devtools
 BuildRequires:  yast2-testsuite
